@@ -10,7 +10,7 @@ services:
       - .:/app
     working_dir: /app
     environment:
-      - DATABASE_URL=postgresql://user:pass@postgres:5432/leaderboard
+      - DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/leaderboard
       - REDIS_URL=redis://redis:6379
       - DEBUG=true
       - SECRET_KEY=WgEPVP24jDgvDQYK
