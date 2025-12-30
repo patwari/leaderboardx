@@ -25,3 +25,4 @@ bundles/
 vendor/pkg/
 pyenv
 Vagrantfile
+planning.md
