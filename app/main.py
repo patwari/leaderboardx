@@ -4,10 +4,16 @@ LeaderboardX - FastAPI Application
 Multi-tenant SaaS leaderboard platform for indie game studios.
 """
 
+import logging
 from typing import Dict, Union, Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.logging_config import setup_logging
+
+# Initialize logging first
+setup_logging()
+logger: logging.Logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app with configuration
 app: FastAPI = FastAPI(
@@ -29,9 +35,24 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def startup_event() -> None:
+    """Application startup event handler."""
+    logger.info(f"Starting {settings.app_name}")
+    logger.info(f"Environment: {'development' if settings.is_development else 'production'}")
+    logger.info(f"Debug mode: {settings.debug}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event() -> None:
+    """Application shutdown event handler."""
+    logger.info(f"Shutting down {settings.app_name}")
+
+
 @app.get("/health")
 def health() -> Dict[str, Union[str, bool]]:
     """Health check endpoint for monitoring and load balancers."""
+    logger.debug("Health check requested")
     return {
         "status": "ok",
         "service": settings.app_name,
