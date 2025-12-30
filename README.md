@@ -25,7 +25,7 @@ Studios (Tenants)
 
 ```
 leaderboardx/
-├── app/
+├── codebase/
 │   ├── api/                 # API route handlers
 │   │   └── v1/             # Version 1 API endpoints
 │   │       ├── auth.py     # Authentication endpoints
@@ -39,7 +39,7 @@ leaderboardx/
 │   ├── services/           # Business logic
 │   ├── middleware/         # Custom middleware
 │   ├── config.py           # Configuration management
-│   └── main.py             # FastAPI app initialization
+│   └── main.py             # FastAPI fast_app initialization
 ├── frontend/               # React dashboard (planned)
 ├── migrations/             # Database migrations (Alembic)
 ├── docker-compose.yml      # Development environment
