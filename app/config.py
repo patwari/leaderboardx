@@ -16,7 +16,7 @@ class Settings:
         # Core application settings
         self.app_name: str = os.environ.get("APP_NAME", "LeaderboardX")
         self.debug: bool = os.environ.get("DEBUG", "false").lower() == "true"
-        self.secret_key: str = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+        self.secret_key: str = os.environ.get("SECRET_KEY", "WgEPVP24jDgvDQYK")
         
         # Database configuration
         self.database_url: str = os.environ.get(
