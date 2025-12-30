@@ -4,47 +4,33 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     volumes:
       - .:/app
     working_dir: /app
     environment:
-      - DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/leaderboard
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/leaderboard
       - REDIS_URL=redis://redis:6379
       - DEBUG=true
-      - APP_NAME=LeaderboardX Development
       - SECRET_KEY=WgEPVP24jDgvDQYK
-      - ALLOWED_HOSTS=localhost,127.0.0.1
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:8000
+      - APP_NAME=LeaderboardX Development
 
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: leaderboard
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
+      - POSTGRES_DB=leaderboard
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d leaderboard"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
 volumes:
   postgres_data:
