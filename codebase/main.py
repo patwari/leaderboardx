@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from codebase.config import settings
 from codebase.logging_config import setup_logging
+from codebase.api.v1.health import router as health_router
 
 # Initialize logging first
 setup_logging()
@@ -19,7 +20,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 fast_app: FastAPI = FastAPI(
     title=settings.app_name,
     description="High-performance, multi-tenant leaderboard platform for indie game studios",
-    version="1.0.0",
+    version=settings.version,
     debug=settings.debug,
     docs_url="/docs" if settings.is_development else None,
     redoc_url="/redoc" if settings.is_development else None,
@@ -34,6 +35,9 @@ fast_app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include API routers
+fast_app.include_router(health_router, prefix="/api/v1")
+
 
 @fast_app.on_event("startup")
 async def startup_event() -> None:
@@ -47,14 +51,3 @@ async def startup_event() -> None:
 async def shutdown_event() -> None:
     """Application shutdown event handler."""
     logger.info(f"Shutting down {settings.app_name}")
-
-
-@fast_app.get("/health")
-def health() -> Dict[str, Union[str, bool]]:
-    """Health check endpoint for monitoring and load balancers."""
-    logger.debug("Health check requested")
-    return {
-        "status": "ok",
-        "service": settings.app_name,
-        "environment": "development" if settings.is_development else "production"
-    }

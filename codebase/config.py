@@ -15,6 +15,7 @@ class Settings:
     def __init__(self) -> None:
         # Core application settings
         self.app_name: str = os.environ.get("APP_NAME", "LeaderboardX")
+        self.version: str = os.environ.get("APP_VERSION", "0.0.1")
         self.debug: bool = os.environ.get("DEBUG", "false").lower() == "true"
         self.secret_key: str = os.environ.get("SECRET_KEY", "WgEPVP24jDgvDQYK")
         
