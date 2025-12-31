@@ -6,8 +6,8 @@ services:
     depends_on:
       - postgres-service
       - redis-service
-    # volumes:
-    #   - ./codebase:/codebase
+    volumes:
+      - ./codebase:/leaderboardx-root/codebase
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/leaderboard
       - REDIS_URL=redis://redis:6379
