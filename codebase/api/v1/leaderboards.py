@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from codebase.dependencies import get_database, get_pagination_params, PaginationParams
-from codebase.schemas.leaderboard import LeaderboardCreate, LeaderboardResponse, LeaderboardListResponse
+from codebase.schemas.leaderboard import LeaderboardCreate, LeaderboardResponse, LeaderboardListResponse, LeaderboardUpdate
 from codebase.crud.leaderboard import leaderboard
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
@@ -63,3 +63,32 @@ async def list_leaderboards(
         page=pagination.page,
         size=pagination.size
     )
+
+
+@router.put("/{leaderboard_id}", response_model=LeaderboardResponse)
+async def update_leaderboard(
+    leaderboard_id: int,
+    leaderboard_update: LeaderboardUpdate,
+    db: AsyncSession = Depends(get_database)
+):
+    """Update leaderboard by ID"""
+    db_leaderboard = await leaderboard.get(db, id=leaderboard_id)
+    if not db_leaderboard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Leaderboard with ID {leaderboard_id} not found"
+        )
+    
+    try:
+        updated_leaderboard = await leaderboard.update(db, db_obj=db_leaderboard, obj_in=leaderboard_update)
+        return updated_leaderboard
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update leaderboard"
+        )
