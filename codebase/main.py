@@ -8,15 +8,15 @@ import logging
 from typing import Dict, Union, Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import settings
-from app.logging_config import setup_logging
+from codebase.config import settings
+from codebase.logging_config import setup_logging
 
 # Initialize logging first
 setup_logging()
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app with configuration
-app: FastAPI = FastAPI(
+# Initialize FastAPI fast_app with configuration
+fast_app: FastAPI = FastAPI(
     title=settings.app_name,
     description="High-performance, multi-tenant leaderboard platform for indie game studios",
     version="1.0.0",
@@ -26,7 +26,7 @@ app: FastAPI = FastAPI(
 )
 
 # Add CORS middleware for frontend integration
-app.add_middleware(
+fast_app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
@@ -35,7 +35,7 @@ app.add_middleware(
 )
 
 
-@app.on_event("startup")
+@fast_app.on_event("startup")
 async def startup_event() -> None:
     """Application startup event handler."""
     logger.info(f"Starting {settings.app_name}")
@@ -43,13 +43,13 @@ async def startup_event() -> None:
     logger.info(f"Debug mode: {settings.debug}")
 
 
-@app.on_event("shutdown")
+@fast_app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Application shutdown event handler."""
     logger.info(f"Shutting down {settings.app_name}")
 
 
-@app.get("/health")
+@fast_app.get("/health")
 def health() -> Dict[str, Union[str, bool]]:
     """Health check endpoint for monitoring and load balancers."""
     logger.debug("Health check requested")

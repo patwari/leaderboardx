@@ -1,16 +1,20 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+WORKDIR /leaderboardx-root
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY app ./app
+COPY codebase ./codebase
+
+# Copy alembic configuration and migrations
+COPY alembic.ini .
+COPY alembic ./alembic
 
 # Expose port
 EXPOSE 8000
 
 # Run application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "codebase.main:fast_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
