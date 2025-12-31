@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.config import settings
+from codebase.config import settings
 
 v1_router = APIRouter(prefix=settings.api_v1_prefix)
 

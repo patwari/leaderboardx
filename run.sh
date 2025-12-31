@@ -12,4 +12,4 @@ docker compose build
 docker compose up --detach --remove-orphans
 
 echo "LeaderboardX is running on http://localhost:8000"
-echo "health is running on http://localhost:8000/health"
+echo "health is running on http://localhost:8000/api/v1/health"
