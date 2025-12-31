@@ -8,6 +8,7 @@ services:
       - redis-service
     volumes:
       - ./codebase:/leaderboardx-root/codebase
+      - ./alembic:/leaderboardx-root/alembic
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/leaderboard
       - REDIS_URL=redis://redis:6379

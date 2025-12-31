@@ -9,6 +9,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY codebase ./codebase
 
+# Copy alembic configuration and migrations
+COPY alembic.ini .
+COPY alembic ./alembic
+
 # Expose port
 EXPOSE 8000
 

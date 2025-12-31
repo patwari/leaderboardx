@@ -7,12 +7,15 @@ from alembic import context
 from codebase.database import Base
 from codebase.config import settings
 
+# Import models so alembic can detect them for autogeneration
+from codebase.models import User, Leaderboard, Score
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# Override sqlalchemy.url with environment variable
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Override sqlalchemy.url with Docker service hostname
+config.set_main_option("sqlalchemy.url", "postgresql+asyncpg://user:pass@postgres-service:5432/leaderboard")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
