@@ -10,7 +10,7 @@ services:
       - ./codebase:/leaderboardx-root/codebase
       - ./alembic:/leaderboardx-root/alembic
     environment:
-      - DATABASE_URL=postgresql+asyncpg://user:pass@postgres-service:5432/leaderboard
+      - DATABASE_URL=postgresql+asyncpg://user:pass@postgres-service:5432/leaderboardx-db
       - REDIS_URL=redis://redis-service:6379
       - DEBUG=true
       - SECRET_KEY=WgEPVP24jDgvDQYK
@@ -20,7 +20,7 @@ services:
   postgres-service:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=leaderboard
+      - POSTGRES_DB=leaderboardx-db
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=pass
     volumes:
