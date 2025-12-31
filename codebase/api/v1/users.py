@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from codebase.dependencies import get_database
-from codebase.schemas.user import UserCreate, UserResponse
+from codebase.dependencies import get_database, get_pagination_params, PaginationParams
+from codebase.schemas.user import UserCreate, UserResponse, UserListResponse
 from codebase.crud.user import user
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -41,3 +41,20 @@ async def get_user(
             detail=f"User with ID {user_id} not found"
         )
     return db_user
+
+
+@router.get("/", response_model=UserListResponse)
+async def list_users(
+    db: AsyncSession = Depends(get_database),
+    pagination: PaginationParams = Depends(get_pagination_params)
+):
+    """List users with pagination"""
+    users = await user.get_multi(db, skip=pagination.skip, limit=pagination.limit)
+    total = await user.get_count(db)
+    
+    return UserListResponse(
+        users=users,
+        total=total,
+        page=pagination.page,
+        size=pagination.size
+    )
