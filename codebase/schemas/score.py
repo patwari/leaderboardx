@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+from uuid import UUID
 from pydantic import BaseModel, Field
 from codebase.schemas.user import UserResponse
 from codebase.schemas.leaderboard import LeaderboardResponse
@@ -13,7 +14,7 @@ class ScoreBase(BaseModel):
 
 class ScoreCreate(ScoreBase):
     """Score creation model"""
-    user_id: int
+    user_xid: UUID
     leaderboard_id: int
 
 
@@ -24,8 +25,8 @@ class ScoreUpdate(BaseModel):
 
 class ScoreResponse(ScoreBase):
     """Score response model"""
-    id: int
-    user_id: int
+    xid: UUID
+    user_xid: UUID
     leaderboard_id: int
     submitted_at: datetime
     

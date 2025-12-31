@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from codebase.dependencies import get_database, get_pagination_params, PaginationParams
 from codebase.schemas.user import UserCreate, UserResponse, UserListResponse, UserUpdate
@@ -7,38 +8,48 @@ from codebase.crud.user import user
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(
+@router.post("/device", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def get_or_create_user_by_device(
     user_in: UserCreate,
     db: AsyncSession = Depends(get_database)
 ):
-    """Create a new user"""
+    """Get existing user by device ID or create new one"""
     try:
-        created_user = await user.create(db, obj_in=user_in)
-        return created_user
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        user_obj = await user.get_or_create_by_device_id(db, device_id=user_in.device_id)
+        return user_obj
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user"
+            detail="Failed to get or create user"
         )
 
 
-@router.get("/{user_id}", response_model=UserResponse)
-async def get_user(
-    user_id: int,
+@router.get("/device/{device_id}", response_model=UserResponse)
+async def get_user_by_device(
+    device_id: str,
     db: AsyncSession = Depends(get_database)
 ):
-    """Get user by ID"""
-    db_user = await user.get(db, id=user_id)
+    """Get user by device ID"""
+    db_user = await user.get_by_device_id(db, device_id=device_id)
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found"
+            detail=f"User with device ID '{device_id}' not found"
+        )
+    return db_user
+
+
+@router.get("/{xid}", response_model=UserResponse)
+async def get_user_by_xid(
+    xid: UUID,
+    db: AsyncSession = Depends(get_database)
+):
+    """Get user by XID (LeaderboardX internal ID)"""
+    db_user = await user.get_by_xid(db, xid=xid)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with XID {xid} not found"
         )
     return db_user
 
@@ -60,18 +71,18 @@ async def list_users(
     )
 
 
-@router.put("/{user_id}", response_model=UserResponse)
-async def update_user(
-    user_id: int,
+@router.put("/{xid}", response_model=UserResponse)
+async def update_user_by_xid(
+    xid: UUID,
     user_update: UserUpdate,
     db: AsyncSession = Depends(get_database)
 ):
-    """Update user by ID"""
-    db_user = await user.get(db, id=user_id)
+    """Update user by XID (LeaderboardX internal ID)"""
+    db_user = await user.get_by_xid(db, xid=xid)
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found"
+            detail=f"User with XID {xid} not found"
         )
     
     try:
