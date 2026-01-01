@@ -9,8 +9,10 @@ from codebase.schemas.user import UserCreate, UserUpdate
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def get_by_device_id(self, db: AsyncSession, *, device_id: str) -> Optional[User]:
-        """Get user by device ID"""
-        result = await db.execute(select(User).where(User.device_id == device_id))
+        """Get user by device_id"""
+        result = await db.execute(
+            select(User).where(User.device_id == device_id)
+        )
         return result.scalar_one_or_none()
 
     async def get_by_xid(self, db: AsyncSession, *, xid: UUID) -> Optional[User]:

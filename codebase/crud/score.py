@@ -7,6 +7,7 @@ from codebase.crud.base import CRUDBase
 from codebase.models.score import Score
 from codebase.models.user import User
 from codebase.schemas.score import ScoreCreate, ScoreUpdate
+from uuid import UUID
 
 
 class CRUDScore(CRUDBase[Score, ScoreCreate, ScoreUpdate]):
@@ -21,7 +22,6 @@ class CRUDScore(CRUDBase[Score, ScoreCreate, ScoreUpdate]):
         """Get scores for a leaderboard ordered by value (highest first)"""
         result = await db.execute(
             select(Score)
-            .options(joinedload(Score.user))
             .where(Score.leaderboard_id == leaderboard_id)
             .order_by(desc(Score.value), Score.submitted_at)
             .offset(skip)
@@ -33,16 +33,15 @@ class CRUDScore(CRUDBase[Score, ScoreCreate, ScoreUpdate]):
         self,
         db: AsyncSession,
         *,
-        user_id: int,
+        xid: UUID,
         skip: int = 0,
         limit: int = 100
     ) -> Sequence[Score]:
         """Get all scores for a user"""
         result = await db.execute(
             select(Score)
-            .options(joinedload(Score.leaderboard))
-            .where(Score.user_id == user_id)
-            .order_by(desc(Score.submitted_at))
+            .where(Score.xid == xid)
+            .order_by(Score.submitted_at)
             .offset(skip)
             .limit(limit)
         )
@@ -52,14 +51,14 @@ class CRUDScore(CRUDBase[Score, ScoreCreate, ScoreUpdate]):
         self,
         db: AsyncSession,
         *,
-        user_id: int,
-        leaderboard_id: int
+        leaderboard_id: int,
+        user_id: UUID
     ) -> tuple[int | None, Score | None]:
         """Get user's rank and best score in a leaderboard"""
         # Get user's best score in this leaderboard
         user_score_result = await db.execute(
             select(Score)
-            .where(Score.user_id == user_id, Score.leaderboard_id == leaderboard_id)
+            .where(Score.user_xid == user_id, Score.leaderboard_id == leaderboard_id)
             .order_by(desc(Score.value), Score.submitted_at)
             .limit(1)
         )
@@ -85,13 +84,13 @@ class CRUDScore(CRUDBase[Score, ScoreCreate, ScoreUpdate]):
         self,
         db: AsyncSession,
         *,
-        user_id: int,
+        xid: UUID,
         leaderboard_id: int
     ) -> Score | None:
         """Get user's best score in a leaderboard"""
         result = await db.execute(
             select(Score)
-            .where(Score.user_id == user_id, Score.leaderboard_id == leaderboard_id)
+            .where(Score.xid == xid, Score.leaderboard_id == leaderboard_id)
             .order_by(desc(Score.value), Score.submitted_at)
             .limit(1)
         )

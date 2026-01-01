@@ -13,9 +13,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def __init__(self, model: Type[ModelType]):
         self.model = model
 
-    async def get(self, db: AsyncSession, id: int) -> Optional[ModelType]:
+    async def get(self, db: AsyncSession, id: Any) -> Optional[ModelType]:
         """Get single record by ID"""
-        result = await db.execute(select(self.model).where(self.model.id == id))
+        primary_key = getattr(self.model, 'xid', getattr(self.model, 'id', None))
+        if primary_key is None:
+            raise ValueError("Model does not have a primary key attribute 'xid' or 'id'")
+
+        result = await db.execute(select(self.model).where(primary_key == id))
         return result.scalar_one_or_none()
 
     async def get_multi(
