@@ -22,7 +22,7 @@ class Settings:
         # Database configuration
         self.database_url: str = os.environ.get(
             "DATABASE_URL", 
-            "postgresql+asyncpg://user:pass@localhost:5432/leaderboard"
+            "postgresql+asyncpg://user:pass@localhost:5432/leaderboardx-db"
         )
         
         # Redis configuration

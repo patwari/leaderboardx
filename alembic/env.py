@@ -14,8 +14,8 @@ from codebase.models import User, Leaderboard, Score
 # access to the values within the .ini file in use.
 config = context.config
 
-# Override sqlalchemy.url with Docker service hostname
-config.set_main_option("sqlalchemy.url", "postgresql+asyncpg://user:pass@postgres-service:5432/leaderboard")
+# Use DATABASE_URL from environment (same as the main application)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
