@@ -30,6 +30,13 @@ class Settings:
         
         # API settings
         self.api_v1_prefix: str = "/api/v1"
+
+        # Admin dashboard (HTML) settings
+        # Use a different base path than the API. Example: /__admin
+        self.admin_dashboard_path: str = os.environ.get("ADMIN_DASHBOARD_PATH", "/__admin")
+        # Simple shared token for now. Provide in header `X-Admin-Token` or query `token`.
+        # In production you should set this explicitly.
+        self.admin_token: str = os.environ.get("ADMIN_TOKEN", "")
         
         # Security settings
         self.allowed_hosts: list[str] = self._parse_hosts(

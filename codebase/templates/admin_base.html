@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeaderboardX Admin</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 0; background: #0b1220; color: #e6edf7; }
+    a { color: #9bd1ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header { position: sticky; top: 0; background: rgba(11,18,32,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #1d2a44; padding: 14px 18px; display: flex; gap: 18px; align-items: baseline; }
+    header .title { font-weight: 700; letter-spacing: 0.2px; }
+    header nav { display: flex; gap: 14px; font-size: 14px; }
+    main { padding: 18px; max-width: 1200px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card { grid-column: span 12; border: 1px solid #1d2a44; background: #0f1a2f; border-radius: 12px; padding: 14px; box-shadow: 0 8px 22px rgba(0,0,0,0.25); }
+    .card h2 { margin: 0 0 10px; font-size: 16px; }
+    .muted { color: #a9b7d0; font-size: 13px; }
+    .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+    .kpi { border: 1px solid #223154; background: #0b152a; border-radius: 12px; padding: 12px; }
+    .kpi .label { font-size: 12px; color: #a9b7d0; }
+    .kpi .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #1d2a44; text-align: left; vertical-align: top; }
+    th { color: #a9b7d0; font-weight: 600; }
+    code { background: #0b152a; border: 1px solid #223154; padding: 2px 6px; border-radius: 8px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid #223154; background: #0b152a; color: #cfe6ff; }
+    .two { grid-column: span 6; }
+    .three { grid-column: span 4; }
+    .four { grid-column: span 3; }
+    @media (max-width: 920px){
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .two, .three, .four { grid-column: span 12; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">LeaderboardX Admin</div>
+    <nav>
+      <a href="{{ base }}/overview">Overview</a>
+      <a href="{{ base }}/companies">Companies</a>
+      <a href="/docs" target="_blank">API Docs</a>
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+    <p class="muted" style="margin-top: 18px;">
+      Tip: set <code>ADMIN_TOKEN</code> and use header <code>X-Admin-Token</code>.
+    </p>
+  </main>
+</body>
+</html>

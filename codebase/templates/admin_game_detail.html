@@ -1,0 +1,53 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="grid">
+  <div class="card">
+    <h2>{{ game.name }}</h2>
+    <p class="muted">
+      Game ID: <code>{{ game.game_id }}</code>
+      {% if company %}<br/>Company: <a href="{{ base }}/companies/{{ company.company_id }}">{{ company.name }}</a>{% endif %}
+      <br/>Players: <span class="badge">{{ players_count }}</span>
+    </p>
+  </div>
+
+  {% for item in leaderboard_states %}
+  <div class="card">
+    <h2>Leaderboard: <code>{{ item.lb.leaderboard_id }}</code> <span class="badge">sort={{ item.lb.sort_order }}</span></h2>
+    <p class="muted" style="margin-top:-4px;">
+      Leaderboard PK: <code>{{ item.lb.leaderboard_pk }}</code>
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Player XID</th>
+          <th>Best value</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in item.top %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><code>{{ row.player_xid }}</code></td>
+          <td><span class="badge">{{ row.best_value }}</span></td>
+          <td>{{ row.updated_at }}</td>
+        </tr>
+        {% endfor %}
+        {% if item.top|length == 0 %}
+        <tr><td colspan="4" class="muted">No scores yet for this leaderboard.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+
+  {% if leaderboard_states|length == 0 %}
+  <div class="card">
+    <h2>Leaderboards</h2>
+    <p class="muted">No leaderboards yet for this game.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

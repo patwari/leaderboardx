@@ -1,0 +1,35 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="grid">
+  <div class="card">
+    <h2>{{ company.name }}</h2>
+    <p class="muted">Company ID: <code>{{ company.company_id }}</code></p>
+  </div>
+
+  <div class="card">
+    <h2>Games</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Game ID</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in games %}
+        <tr>
+          <td><a href="{{ base }}/games/{{ g.game_id }}">{{ g.name }}</a></td>
+          <td><code>{{ g.game_id }}</code></td>
+          <td>{{ g.created_at }}</td>
+        </tr>
+        {% endfor %}
+        {% if games|length == 0 %}
+        <tr><td colspan="3" class="muted">No games yet.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
