@@ -8,7 +8,7 @@ from codebase.database import Base
 from codebase.config import settings
 
 # Import models so alembic can detect them for autogeneration
-from codebase.models import User, Leaderboard, Score
+from codebase.models import Company, Game, Leaderboard, Player, BestScore, ScoreEvent
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

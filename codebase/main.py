@@ -11,8 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from codebase.config import settings
 from codebase.logging_config import setup_logging
 from codebase.api.v1.health import router as health_router
-from codebase.api.v1.users import router as users_router
-from codebase.api.v1.leaderboards import router as leaderboards_router
+from codebase.api.v1.studio import router as studio_router
+from codebase.api.v1.client import router as client_router
+from codebase.api.v1.admin import router as admin_router
+from codebase.database import create_tables
 
 # Initialize logging first
 setup_logging()
@@ -39,8 +41,9 @@ fast_app.add_middleware(
 
 # Include API routers
 fast_app.include_router(health_router, prefix="/api/v1")
-fast_app.include_router(users_router, prefix="/api/v1")
-fast_app.include_router(leaderboards_router, prefix="/api/v1")
+fast_app.include_router(studio_router, prefix="/api/v1")
+fast_app.include_router(client_router, prefix="/api/v1")
+fast_app.include_router(admin_router, prefix="/api/v1")
 
 
 @fast_app.on_event("startup")
@@ -49,6 +52,10 @@ async def startup_event() -> None:
     logger.info(f"Starting {settings.app_name}")
     logger.info(f"Environment: {'development' if settings.is_development else 'production'}")
     logger.info(f"Debug mode: {settings.debug}")
+
+    # For a fresh start / local development: create tables automatically.
+    # If you prefer migrations only, remove this and use `alembic upgrade head`.
+    await create_tables()
 
 
 @fast_app.on_event("shutdown")

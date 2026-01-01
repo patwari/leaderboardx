@@ -7,7 +7,7 @@ A high-performance, multi-tenant SaaS leaderboard platform for indie game studio
 ### Core Technologies
 - **Backend**: FastAPI (Python 3.11+)
 - **Database**: PostgreSQL with async SQLAlchemy
-- **Cache**: Redis for high-performance leaderboard operations
+- **Cache**: (planned) Redis for high-performance leaderboard operations
 - **Frontend**: React with TypeScript
 - **Deployment**: Docker + Docker Compose
 
@@ -28,10 +28,10 @@ leaderboardx/
 ├── codebase/
 │   ├── api/                 # API route handlers
 │   │   └── v1/             # Version 1 API endpoints
-│   │       ├── auth.py     # Authentication endpoints
-│   │       ├── studios.py  # Studio management
-│   │       ├── games.py    # Game management
-│   │       └── game_client.py  # Client API (for games)
+│   │       ├── health.py   # Health endpoints
+│   │       ├── studio.py   # Company/game/leaderboard management (no dashboard auth yet)
+│   │       ├── client.py   # Client API (device auth, score submit, leaderboard fetch)
+│   │       └── admin.py    # Developer overview endpoints
 │   ├── auth/               # Authentication utilities
 │   ├── crud/               # Database operations
 │   ├── models/             # SQLAlchemy database models
