@@ -13,6 +13,7 @@ from codebase.logging_config import setup_logging
 from codebase.api.v1.health import router as health_router
 from codebase.api.v1.users import router as users_router
 from codebase.api.v1.leaderboards import router as leaderboards_router
+from codebase.api.v1.scores import router as scores_router
 
 # Initialize logging first
 setup_logging()
@@ -41,6 +42,7 @@ fast_app.add_middleware(
 fast_app.include_router(health_router, prefix="/api/v1")
 fast_app.include_router(users_router, prefix="/api/v1")
 fast_app.include_router(leaderboards_router, prefix="/api/v1")
+fast_app.include_router(scores_router, prefix="/api/v1")
 
 
 @fast_app.on_event("startup")
