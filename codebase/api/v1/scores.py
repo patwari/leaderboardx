@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from codebase.dependencies import get_database
-from codebase.schemas.score import ScoreCreate, ScoreResponse
+from codebase.schemas.score import ScoreCreate, ScoreResponse, ScoreListResponse
+from codebase.dependencies import get_pagination_params, PaginationParams
 from decimal import Decimal
 from codebase.crud.score import score
 from codebase.crud.user import user
 from codebase.crud.leaderboard import leaderboard
+from sqlalchemy import select, func
+from codebase.models.score import Score
 
 router = APIRouter(
     prefix="/scores",
@@ -51,3 +54,118 @@ async def submit_score(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while submitting the score"
         )
+
+@router.get("/leaderboards/{leaderboard_id}/scores", response_model=ScoreListResponse)
+async def get_leaderboard_scores(
+    leaderboard_id: int,
+    db: AsyncSession = Depends(get_database),
+    pagination: PaginationParams = Depends(get_pagination_params)
+):
+    """Get scores for a leaderboard (ranking)"""
+    # Validate leaderboard exists
+    db_leaderboard = await leaderboard.get(db, id=leaderboard_id)
+    if not db_leaderboard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leaderboard not found"
+        )
+
+    # Fetch scores with ranking
+    scores = await score.get_leaderboard_scores(
+        db,
+        leaderboard_id=leaderboard_id,
+        skip=pagination.skip,
+        limit=pagination.limit
+    )
+
+    # Get total count for this leaderboard
+    total_result = await db.execute(
+        select(func.count()).select_from(Score).where(Score.leaderboard_id == leaderboard_id)
+    )
+    total = total_result.scalar()
+
+    return ScoreListResponse(
+        scores=scores,
+        total=total,
+        page=pagination.page,
+        size=pagination.size
+    )
+
+@router.get("/users/{user_id}/scores", response_model=ScoreListResponse)
+async def get_user_scores(
+    user_id: int,
+    db: AsyncSession = Depends(get_database),
+    pagination: PaginationParams = Depends(get_pagination_params)
+):
+    """Get all scores for a user"""
+    # Validate user exists
+    db_user = await user.get(db, id=user_id)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Fetch scores for the user
+    scores = await score.get_user_scores(
+        db,
+        user_id=user_id,
+        skip=pagination.skip,
+        limit=pagination.limit
+    )
+
+    # Get total count for this user
+    total_result = await db.execute(
+        select(func.count()).select_from(Score).where(Score.user_id == user_id)
+    )
+    total = total_result.scalar()
+
+    return ScoreListResponse(
+        scores=scores,
+        total=total,
+        page=pagination.page,
+        size=pagination.size
+    )
+
+@router.get("/leaderboards/{leaderboard_id}/users/{user_id}/rank")
+async def get_user_rank(
+    leaderboard_id: int,
+    user_id: int,
+    db: AsyncSession = Depends(get_database)
+):
+    """Get user's rank in a leaderboard"""
+    # Validate leaderboard exists
+    db_leaderboard = await leaderboard.get(db, id=leaderboard_id)
+    if not db_leaderboard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leaderboard not found"
+        )
+
+    # Validate user exists
+    db_user = await user.get(db, id=user_id)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Retrieve user rank and score
+    rank, user_score = await score.get_user_leaderboard_rank(
+        db,
+        leaderboard_id=leaderboard_id,
+        user_id=user_id
+    )
+
+    if rank is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User has no score in this leaderboard"
+        )
+
+    return {
+        "user_id": user_id,
+        "rank": rank,
+        "score": user_score.value,
+        "submitted_at": user_score.submitted_at
+    }
