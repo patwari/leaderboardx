@@ -15,6 +15,7 @@ from codebase.api.v1.studio import router as studio_router
 from codebase.api.v1.client import router as client_router
 from codebase.api.v1.admin import router as admin_router
 from codebase.api.admin_dashboard import router as admin_dashboard_router
+from codebase.api.studio_dashboard import router as studio_dashboard_router
 from codebase.database import create_tables
 
 # Initialize logging first
@@ -48,6 +49,9 @@ fast_app.include_router(admin_router, prefix="/api/v1")
 
 # Developer/operator HTML dashboard (separate URL from API)
 fast_app.include_router(admin_dashboard_router, prefix=settings.admin_dashboard_path)
+
+# Studio HTML dashboard for company login and game management
+fast_app.include_router(studio_dashboard_router, prefix=settings.studio_dashboard_path)
 
 
 @fast_app.on_event("startup")

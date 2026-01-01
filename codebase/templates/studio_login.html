@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeaderboardX Studio Login</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", Helvetica, Arial, sans-serif; margin: 0; background: radial-gradient(circle at top, #fff6e8, #f4f3ee 45%, #ede8df 100%); color: #1d1b16; }
+    main { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .card { width: min(420px, 92vw); border: 1px solid #d8d2c6; background: #ffffff; border-radius: 16px; padding: 22px; box-shadow: 0 12px 24px rgba(24, 22, 19, 0.1); }
+    h1 { margin: 0 0 6px; font-size: 22px; }
+    p { margin: 0 0 16px; color: #6d6458; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #c9c0b2; background: #fcfbf9; font-size: 14px; margin-bottom: 12px; }
+    button { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid #1d1b16; background: #1d1b16; color: #fffaf0; font-weight: 600; cursor: pointer; }
+    .error { color: #a82020; font-size: 13px; margin-bottom: 12px; }
+    .muted { color: #6d6458; font-size: 12px; }
+    code { background: #f0ede7; border: 1px solid #e1dbd0; padding: 2px 6px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <form class="card" method="post" action="{{ base }}/login">
+      <h1>Studio Login</h1>
+      <p>Use your company credentials to manage games.</p>
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+      <label for="company_id">Company ID</label>
+      <input id="company_id" name="company_id" placeholder="UUID from studio registration" required />
+      <label for="company_secret">Company Secret</label>
+      <input id="company_secret" name="company_secret" type="password" placeholder="Shared secret" required />
+      <button type="submit">Continue</button>
+      <p class="muted" style="margin-top: 12px;">
+        Need a company? Create one via <code>POST /api/v1/studio/companies</code>.
+      </p>
+    </form>
+  </main>
+</body>
+</html>

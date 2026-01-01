@@ -18,6 +18,8 @@ services:
       - SECRET_KEY=WgEPVP24jDgvDQYK
       - APP_NAME=LeaderboardX Development
       - APP_VERSION=0.0.1
+      - STUDIO_DASHBOARD_PATH=/__studio
+      - ADMIN_DASHBOARD_PATH=/__admin
 
   postgres-service:
     image: postgres:15-alpine

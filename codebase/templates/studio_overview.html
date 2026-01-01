@@ -1,0 +1,51 @@
+{% extends "studio_base.html" %}
+
+{% block content %}
+  <div class="grid">
+    <section class="card span-7">
+      <h2>Welcome, {{ company.name }}</h2>
+      <p class="muted">Company ID: <code>{{ company.company_id }}</code></p>
+      <h3 style="margin-top: 18px;">Your Games</h3>
+      {% if games %}
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Game ID</th>
+              <th>Leaderboards</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for game in games %}
+              <tr>
+                <td>{{ game.name }}</td>
+                <td><code>{{ game.game_id }}</code></td>
+                <td>
+                  {% if game.leaderboards %}
+                    {% for lb in game.leaderboards %}
+                      <span class="pill">{{ lb.name }}</span>
+                    {% endfor %}
+                  {% else %}
+                    <span class="muted">No leaderboards yet</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No games yet. Add your first game on the right.</p>
+      {% endif %}
+    </section>
+
+    <section class="card span-5">
+      <h2>Add a Game</h2>
+      <p class="muted">Create a new game ID for your players.</p>
+      <form method="post" action="{{ base }}/games">
+        <label for="name">Game name</label>
+        <input id="name" name="name" placeholder="Space Rangers 2" required />
+        <button type="submit">Create game</button>
+      </form>
+    </section>
+  </div>
+{% endblock %}

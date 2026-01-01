@@ -37,6 +37,9 @@ class Settings:
         # Simple shared token for now. Provide in header `X-Admin-Token` or query `token`.
         # In production you should set this explicitly.
         self.admin_token: str = os.environ.get("ADMIN_TOKEN", "")
+
+        # Studio dashboard (HTML) settings
+        self.studio_dashboard_path: str = os.environ.get("STUDIO_DASHBOARD_PATH", "/__studio")
         
         # Security settings
         self.allowed_hosts: list[str] = self._parse_hosts(
