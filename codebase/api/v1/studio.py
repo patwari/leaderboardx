@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from codebase.database import get_db
-from codebase.crud.company import create_company, get_company
+from codebase.crud.company import create_company, get_company, get_company_by_username
 from codebase.crud.game import create_game, get_game
 from codebase.crud.leaderboard import create_leaderboard, get_leaderboard
 from codebase.models import Company, Game
@@ -24,8 +24,18 @@ router = APIRouter(tags=["studio"])
 
 @router.post("/studio/companies", response_model=CompanyCreated)
 async def register_company(payload: CompanyCreate, db: AsyncSession = Depends(get_db)):
-    company = await create_company(db, name=payload.name)
-    return CompanyCreated(company_id=company.company_id, company_secret=company.company_secret, name=company.name)
+    username = payload.username.lower()
+    existing = await get_company_by_username(db, username)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already taken")
+
+    company = await create_company(db, name=payload.name, username=username, password=payload.password)
+    return CompanyCreated(
+        company_id=company.company_id,
+        company_secret=company.company_secret,
+        name=company.name,
+        username=company.username,
+    )
 
 
 @router.post("/studio/games", response_model=GameCreated)

@@ -13,3 +13,5 @@ docker compose up --detach --remove-orphans
 
 echo "LeaderboardX is running on http://localhost:8000"
 echo "health is running on http://localhost:8000/api/v1/health"
+echo "admin dashboard is running on http://localhost:8000/__admin"
+echo "studio dashboard is running on http://localhost:8000/__studio"

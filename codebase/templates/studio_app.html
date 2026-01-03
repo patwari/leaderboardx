@@ -1,0 +1,203 @@
+{% extends "studio_base.html" %}
+
+{% block content %}
+  <style>
+    .split {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 14px;
+    }
+    .sidebar {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+    }
+    .sidebar h4 {
+      margin: 0;
+      padding: 12px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #475569;
+    }
+    .sidebar a {
+      display: block;
+      padding: 12px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #0f172a;
+    }
+    .sidebar a.active {
+      background: #eef2ff;
+      color: #312e81;
+      border-left: 3px solid #6366f1;
+      padding-left: 11px;
+    }
+    .right-pane {
+      display: grid;
+      gap: 14px;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 110%;
+      background: #ffffff;
+      min-width: 220px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      z-index: 10;
+    }
+    .dropdown:hover .dropdown-content,
+    .dropdown:focus-within .dropdown-content {
+      display: block;
+    }
+    .dropdown-content a, .dropdown-content button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+      color: #0f172a;
+    }
+    .dropdown-content a:hover, .dropdown-content button:hover {
+      background: #f8fafc;
+    }
+  </style>
+
+  <div class="split">
+    <aside class="sidebar">
+      <h4>Leaderboards</h4>
+      {% if leaderboard_summaries %}
+        {% for item in leaderboard_summaries %}
+          <a href="{{ base }}/apps/{{ game.game_id }}?leaderboard_id={{ item.leaderboard.leaderboard_id }}" class="{% if selected_leaderboard and selected_leaderboard.leaderboard_id == item.leaderboard.leaderboard_id %}active{% endif %}">
+            <div style="font-weight:600;">{{ item.leaderboard.name or item.leaderboard.leaderboard_id }}</div>
+            <div class="muted" style="font-size:12px;">Key: {{ item.leaderboard.leaderboard_id }} • Players: {{ item.player_count }}</div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <div style="padding:12px 14px;" class="muted">No leaderboards yet.</div>
+      {% endif %}
+    </aside>
+
+    <div class="right-pane">
+      <div class="card">
+        <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div>
+            <h2 style="margin:0 0 4px;">{{ selected_leaderboard.name or selected_leaderboard.leaderboard_id if selected_leaderboard else game.name }}</h2>
+            <p class="muted" style="margin:0;">Game: {{ game.name }} • Game ID: <code>{{ game.game_id }}</code></p>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+            <div class="pill" style="background:#e0f2fe; border-color:#bae6fd; color:#075985;">Players {{ players_count }}</div>
+            <div class="pill" style="background:#ecfeff; border-color:#cffafe; color:#0f172a;">Scores {{ total_scores }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content: space-between; align-items:center; gap:10px;">
+          <h3 style="margin:0;">Summary</h3>
+          <div class="toolbar">
+            <div class="dropdown">
+              <button type="button" class="ghost">Filter</button>
+              <div class="dropdown-content">
+                <a href="{{ base }}/apps/{{ game.game_id }}?leaderboard_id={{ selected_leaderboard.leaderboard_id if selected_leaderboard else '' }}&preset=1h">Last 1 hour</a>
+                <a href="{{ base }}/apps/{{ game.game_id }}?leaderboard_id={{ selected_leaderboard.leaderboard_id if selected_leaderboard else '' }}&preset=6h">Last 6 hours</a>
+                <a href="{{ base }}/apps/{{ game.game_id }}?leaderboard_id={{ selected_leaderboard.leaderboard_id if selected_leaderboard else '' }}&preset=24h">Last 24 hours</a>
+                <a href="{{ base }}/apps/{{ game.game_id }}?leaderboard_id={{ selected_leaderboard.leaderboard_id if selected_leaderboard else '' }}&preset=1w">Last 1 week</a>
+                <a href="{{ base }}/apps/{{ game.game_id }}?leaderboard_id={{ selected_leaderboard.leaderboard_id if selected_leaderboard else '' }}&preset=1m">Last 1 month</a>
+                <div style="padding:8px 12px; border-top:1px solid #e2e8f0;">
+                  <form method="get" action="{{ base }}/apps/{{ game.game_id }}" style="display:grid; gap:8px;">
+                    <input type="hidden" name="leaderboard_id" value="{{ selected_leaderboard.leaderboard_id if selected_leaderboard else '' }}">
+                    <label for="date_from" style="margin:0;">Custom from</label>
+                    <input id="date_from" name="date_from" placeholder="2024-01-01" value="{{ date_from or '' }}" />
+                    <label for="date_to" style="margin:0;">Custom to</label>
+                    <input id="date_to" name="date_to" placeholder="2024-01-31" value="{{ date_to or '' }}" />
+                    <button type="submit" class="ghost">Apply custom</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="ghost">Search by device / xid</button>
+          </div>
+        </div>
+
+        {% if selected_leaderboard %}
+          <div style="margin-top:12px;">
+            <p class="muted" style="margin:0 0 6px;">Key: <code>{{ selected_leaderboard.leaderboard_id }}</code> • Sort: {{ selected_leaderboard.sort_order }}</p>
+            {% set summary = None %}
+            {% for item in leaderboard_summaries %}
+              {% if item.leaderboard.leaderboard_id == selected_leaderboard.leaderboard_id %}
+                {% set summary = item %}
+              {% endif %}
+            {% endfor %}
+            <div class="grid" style="grid-template-columns: repeat(12, 1fr); gap:10px;">
+              <div class="card" style="grid-column: span 4; border-color:#e2e8f0; background:#f8fafc; box-shadow:none;">
+                <div class="muted">Players</div>
+                <div style="font-size:20px; font-weight:700; color:#0f172a;">{{ summary.player_count if summary else 0 }}</div>
+              </div>
+              <div class="card" style="grid-column: span 4; border-color:#e2e8f0; background:#f8fafc; box-shadow:none;">
+                <div class="muted">Latest submission</div>
+                <div style="font-size:14px; color:#0f172a;">{% if summary and summary.latest %}{{ summary.latest.submitted_at }}{% else %}No scores yet{% endif %}</div>
+              </div>
+              <div class="card" style="grid-column: span 4; border-color:#e2e8f0; background:#f8fafc; box-shadow:none;">
+                <div class="muted">Filtered scores</div>
+                <div style="font-size:20px; font-weight:700; color:#0f172a;">{{ total_scores }}</div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <p class="muted" style="margin-top:12px;">Select a leaderboard to view details.</p>
+        {% endif %}
+      </div>
+
+      {% if searched_player %}
+        <section class="card">
+          <h3 style="margin:0 0 8px;">Device search</h3>
+          <p class="muted">Device ID: <code>{{ searched_player.device_id }}</code> • Player XID: <code>{{ searched_player.xid }}</code></p>
+          {% if player_scores %}
+            <table>
+              <thead>
+                <tr>
+                  <th>Leaderboard</th>
+                  <th>Best value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for lb, best in player_scores %}
+                  <tr>
+                    <td><code>{{ lb.leaderboard_id }}</code> ({{ lb.name or lb.leaderboard_id }})</td>
+                    <td>{{ best.best_value }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="muted">No scores found for this device.</p>
+          {% endif %}
+        </section>
+      {% elif device_id %}
+        <section class="card">
+          <h3 style="margin:0 0 8px;">Device search</h3>
+          <p class="muted">No player found for device ID <code>{{ device_id }}</code>.</p>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

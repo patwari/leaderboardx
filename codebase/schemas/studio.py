@@ -10,12 +10,15 @@ DeviceId = str
 
 class CompanyCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
+    username: str = Field(..., min_length=1, max_length=50, pattern=r"^[a-z0-9\-]+$")
+    password: str = Field(..., min_length=6, max_length=128)
 
 
 class CompanyCreated(BaseModel):
     company_id: UUID
     company_secret: str
     name: str
+    username: str
 
 
 class StudioAuth(BaseModel):

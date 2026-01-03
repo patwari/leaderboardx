@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LeaderboardX Studio Login</title>
+  <title>LeaderboardX Studio Register</title>
   <style>
     :root { color-scheme: light; }
     body { font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", Helvetica, Arial, sans-serif; margin: 0; background: radial-gradient(circle at top, #fff6e8, #f4f3ee 45%, #ede8df 100%); color: #1d1b16; }
     main { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-    .card { width: min(420px, 92vw); border: 1px solid #d8d2c6; background: #ffffff; border-radius: 16px; padding: 22px; box-shadow: 0 12px 24px rgba(24, 22, 19, 0.1); }
+    .card { width: min(440px, 92vw); border: 1px solid #d8d2c6; background: #ffffff; border-radius: 16px; padding: 22px; box-shadow: 0 12px 24px rgba(24, 22, 19, 0.1); }
     h1 { margin: 0 0 6px; font-size: 22px; }
     p { margin: 0 0 16px; color: #6d6458; }
     label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -16,29 +16,34 @@
     button { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid #1d1b16; background: #1d1b16; color: #fffaf0; font-weight: 600; cursor: pointer; }
     .error { color: #a82020; font-size: 13px; margin-bottom: 12px; }
     .muted { color: #6d6458; font-size: 12px; }
-    code { background: #f0ede7; border: 1px solid #e1dbd0; padding: 2px 6px; border-radius: 8px; }
     .link { text-align: center; margin-top: 10px; }
+    code { background: #f0ede7; border: 1px solid #e1dbd0; padding: 2px 6px; border-radius: 8px; }
   </style>
 </head>
 <body>
   <main>
-    <form class="card" method="post" action="{{ base }}/login" autocomplete="on">
-      <h1>Studio Login</h1>
-      <p>Use your username + password to manage games.</p>
+    <form class="card" method="post" action="{{ base }}/register" autocomplete="off">
+      <h1>Register Studio</h1>
+      <p>Pick a unique username to manage your apps.</p>
       {% if error %}
         <div class="error">{{ error }}</div>
       {% endif %}
+      <label for="name">Studio name</label>
+      <input id="name" name="name" placeholder="Nebula Forge" required />
       <label for="username">Username</label>
-      <input id="username" name="username" placeholder="a-z, 0-9, '-'" required />
+      <input id="username" name="username" placeholder="a-z, 0-9, '-'" pattern="^[a-z0-9\\-]+$" required />
       <label for="password">Password</label>
-      <input id="password" name="password" type="password" placeholder="••••••••" required />
-      <button type="submit">Continue</button>
+      <input id="password" name="password" type="password" placeholder="At least 6 characters" minlength="6" required />
+      <button type="submit">Create account</button>
       <p class="muted" style="margin-top: 12px;">
         No password recovery is available. Email the developer with details if you need a manual reset.
       </p>
       <div class="link">
-        <a href="{{ base }}/register">Need an account? Register here</a>
+        <a href="{{ base }}/login">Already have an account? Log in</a>
       </div>
+      <p class="muted" style="margin-top: 8px;">
+        Session tokens last for 1 month. After that, log in again.
+      </p>
     </form>
   </main>
 </body>
