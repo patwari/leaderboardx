@@ -1,4 +1,4 @@
-type View = 'welcome' | 'login' | 'signup' | 'studio' | 'game' | 'leaderboard';
+type View = 'welcome' | 'login' | 'signup' | 'studio' | 'game' | 'leaderboard' | 'playerLogin' | 'playerSim';
 
 type FilterKind = 'all' | '1h' | '6h' | '24h' | '48h' | 'custom';
 
@@ -35,15 +35,27 @@ interface Studio {
 }
 
 interface LeaderboardData {
+  leaderboardId: string;
   entries: ScoreEntry[];
   total: number;
   sortOrder: 'asc' | 'desc';
+}
+
+interface LeaderboardOption {
+  leaderboard_id: string;
+  name?: string;
+  sort_order: 'asc' | 'desc';
 }
 
 interface Session {
   companyId: string;
   companySecret: string;
   expiresAt: number;
+}
+
+interface PlayerSession {
+  deviceId: string;
+  xid?: string;
 }
 
 interface AppState {
@@ -60,6 +72,8 @@ interface AppState {
   session?: Session;
   loading: boolean;
   leaderboardData?: LeaderboardData;
+  playerSession?: PlayerSession;
+  playerMessage?: string;
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -99,6 +113,12 @@ function renderApp(): void {
       break;
     case 'leaderboard':
       renderLeaderboardDashboard();
+      break;
+    case 'playerLogin':
+      renderPlayerLoginPage();
+    break;
+    case 'playerSim':
+      renderPlayerSimulatorPage();
       break;
   }
 }
@@ -171,6 +191,24 @@ function readUrlState(): { view?: View; selectedGameId?: string; selectedLeaderb
   return { view: view || undefined, selectedGameId, selectedLeaderboardId };
 }
 
+function navigate(view: View, opts?: { gameId?: string; leaderboardId?: string; push?: boolean }): void {
+  state.view = view;
+  if (opts?.gameId !== undefined) state.selectedGameId = opts.gameId;
+  if (opts?.leaderboardId !== undefined) state.selectedLeaderboardId = opts.leaderboardId;
+  const url = new URL(window.location.href);
+  url.searchParams.set('view', view);
+  if (state.selectedGameId) url.searchParams.set('game', state.selectedGameId);
+  else url.searchParams.delete('game');
+  if (state.selectedLeaderboardId) url.searchParams.set('leaderboard', state.selectedLeaderboardId);
+  else url.searchParams.delete('leaderboard');
+  if (opts?.push) {
+    window.history.pushState({}, '', url.toString());
+  } else {
+    window.history.replaceState({}, '', url.toString());
+  }
+  renderApp();
+}
+
 async function fetchCompanySummary(companyId: string, companySecret: string): Promise<Studio> {
   const url = new URL(`${API_BASE}/studio/company`);
   url.searchParams.set('company_id', companyId);
@@ -215,6 +253,7 @@ async function fetchLeaderboardEntries(
   }
   const data = await res.json();
   return {
+    leaderboardId,
     entries: (data.entries || []).map((e: any) => ({
       xid: e.xid,
       score: e.best_value,
@@ -225,6 +264,44 @@ async function fetchLeaderboardEntries(
   };
 }
 
+async function clientAuth(gameId: string, deviceId: string): Promise<{ xid: string; is_new: boolean }> {
+  const res = await fetch(`${API_BASE}/client/auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ game_id: gameId, device_id: deviceId })
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || 'Unable to auth device');
+  }
+  return res.json();
+}
+
+async function clientSubmitScore(gameId: string, leaderboardId: string, xid: string, value: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/client/score`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ game_id: gameId, leaderboard_id: leaderboardId, xid, value })
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || 'Unable to submit score');
+  }
+}
+
+async function loadPreviewLeaderboard(gameId: string, leaderboardId: string): Promise<void> {
+  try {
+    state.loading = true;
+    const data = await fetchLeaderboardEntries(gameId, leaderboardId, 1, 50);
+    if (state.selectedLeaderboardId === leaderboardId) {
+      state.leaderboardData = data;
+    }
+  } catch (e) {
+    state.playerMessage = (e as Error).message;
+  } finally {
+    state.loading = false;
+  }
+}
 async function openLeaderboard(gameId: string, leaderboardId: string, page: number): Promise<void> {
   try {
     state.selectedGameId = gameId;
@@ -466,23 +543,22 @@ function renderShell(content: string, active: 'studio' | 'game'): void {
         state.selectedGameId = undefined;
         state.selectedLeaderboardId = undefined;
         state.leaderboardData = undefined;
+        state.playerSession = undefined;
+        state.playerMessage = undefined;
         clearSession();
         localStorage.removeItem(UI_STATE_KEY);
-        state.view = 'welcome';
-        saveUiState();
-        renderApp();
+        navigate('welcome', { push: true });
         return;
       }
       if (nav === 'studio') {
-        state.view = 'studio';
+        navigate('studio', { push: true });
       } else if (nav === 'game') {
         state.selectedLeaderboardId = undefined;
-        state.view = 'game';
+        navigate('game', { push: true });
       }
-      saveUiState();
-      renderApp();
     });
   });
+
 }
 
 function renderStudioDashboard(): void {
@@ -613,10 +689,10 @@ function renderGameDashboard(): void {
         .join('')}
     </div>
     <div class="card" style="margin-top: 16px;">
-      <h3>Create new leaderboard</h3>
-      <p style="margin-bottom: 12px;">Spin up a board instantly; a unique ID is generated for you.</p>
-      <div class="actions">
-        <button class="btn" id="new-lb-btn">Add leaderboard</button>
+      <h3>Simulate player</h3>
+      <p class="text-muted" style="margin-bottom: 12px;">Quickly test player behaviour (submits scores, creates leaderboards on first submit).</p>
+      <div class="actions" style="flex-wrap: wrap;">
+        <button class="btn" id="simulate-player-btn">Simulate player</button>
       </div>
     </div>
   `;
@@ -635,16 +711,296 @@ function renderGameDashboard(): void {
     });
   });
 
-  app.querySelector('#new-lb-btn')?.addEventListener('click', () => {
-    const name = prompt('Leaderboard name');
-    if (!name) return;
-    if (!state.session) {
-      state.authMessage = 'Log in to create leaderboards.';
-      renderApp();
+  app.querySelector('#simulate-player-btn')?.addEventListener('click', () => {
+    navigate('playerLogin', { gameId: game.game_id, push: true });
+  });
+}
+
+function renderPlayerLoginPage(): void {
+  if (!state.studio) {
+    navigate('welcome', { push: false });
+    return;
+  }
+  const game =
+    state.studio.games.find((g) => g.game_id === state.selectedGameId) || state.studio.games[0];
+  if (!game) {
+    navigate('studio', { push: false });
+    return;
+  }
+  state.selectedGameId = game.game_id;
+  const deviceId = state.playerSession?.deviceId || '';
+  const playerMessage = state.playerMessage || '';
+
+  const content = `
+    <div class="section-header">
+      <div>
+        <div class="badge">Player login</div>
+        <h2 style="margin: 8px 0 4px;">${game.name}</h2>
+        <p class="text-muted">Authenticate a simulated player device. Use browser back to return.</p>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="back-game">Back to game</button>
+      </div>
+    </div>
+    <div class="panel" style="max-width:560px;">
+      <div class="input-group">
+        <label>Device ID</label>
+        <div style="display:flex; gap:8px;">
+          <input id="device-id-input" value="${deviceId}" placeholder="device-123" />
+          <button class="btn" id="gen-device">Generate</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="player-login-btn">Login as player</button>
+      </div>
+      ${playerMessage ? `<p class="text-muted">${playerMessage}</p>` : ''}
+    </div>
+  `;
+
+  renderShell(content, 'game');
+
+  app.querySelector('#back-game')?.addEventListener('click', () => {
+    navigate('game', { push: true });
+  });
+
+  app.querySelector('#gen-device')?.addEventListener('click', () => {
+    const newId = `device-${Math.random().toString(36).slice(2, 8)}`;
+    (app.querySelector('#device-id-input') as HTMLInputElement | null)!.value = newId;
+  });
+
+  app.querySelector('#player-login-btn')?.addEventListener('click', async () => {
+    const devInput = app.querySelector('#device-id-input') as HTMLInputElement | null;
+    const deviceIdVal = (devInput?.value || '').trim();
+    if (!deviceIdVal) {
+      alert('Enter a device ID');
       return;
     }
-    alert('Leaderboards are created automatically the first time a player submits a score for a new leaderboard ID via the client API.');
+    try {
+      state.loading = true;
+      renderShell(content, 'game');
+      const res = await clientAuth(game.game_id, deviceIdVal);
+      state.playerSession = { deviceId: deviceIdVal, xid: res.xid };
+      state.playerMessage = res.is_new ? 'New player created.' : 'Player session restored.';
+      if (!state.selectedLeaderboardId && game.leaderboards.length > 0) {
+        state.selectedLeaderboardId = game.leaderboards[0].leaderboard_id;
+      }
+      navigate('playerSim', { push: true });
+      if (state.selectedLeaderboardId) {
+        loadPreviewLeaderboard(game.game_id, state.selectedLeaderboardId);
+      }
+    } catch (e) {
+      state.playerMessage = (e as Error).message;
+    } finally {
+      state.loading = false;
+      renderApp();
+    }
   });
+}
+
+function renderPlayerSimulatorPage(): void {
+  if (!state.studio) {
+    navigate('welcome', { push: false });
+    return;
+  }
+  const game =
+    state.studio.games.find((g) => g.game_id === state.selectedGameId) || state.studio.games[0];
+  if (!game) {
+    navigate('studio', { push: false });
+    return;
+  }
+  if (!state.playerSession?.xid) {
+    navigate('playerLogin', { gameId: game.game_id, push: true });
+    return;
+  }
+  state.selectedGameId = game.game_id;
+  const leaderboards = game.leaderboards;
+  if (!state.selectedLeaderboardId && leaderboards.length > 0) {
+    state.selectedLeaderboardId = leaderboards[0].leaderboard_id;
+  }
+  const deviceId = state.playerSession.deviceId;
+  const xid = state.playerSession.xid;
+  const playerMessage = state.playerMessage || '';
+  const leaderboardData =
+    state.leaderboardData?.leaderboardId === state.selectedLeaderboardId ? state.leaderboardData : undefined;
+
+  const content = `
+    <div class="section-header">
+      <div>
+        <div class="badge">Player simulator</div>
+        <h2 style="margin: 8px 0 4px;">${game.name}</h2>
+        <p class="text-muted">Simulated player session is active. Use browser back to return.</p>
+        <p class="text-muted">Device: ${deviceId} · XID: ${xid}</p>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="back-game">Back to game</button>
+        <button class="btn" id="logout-player-btn" ${xid ? '' : 'disabled'}>Logout player</button>
+        <button class="btn ghost" id="switch-player-btn">Switch player</button>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <h3>Leaderboard + Score</h3>
+      <div class="input-group">
+        <label>Leaderboard ID</label>
+        <select id="sim-lb-select">
+          ${(leaderboards || [])
+            .map(
+              (lb) =>
+                `<option value="${lb.leaderboard_id}" ${
+                  lb.leaderboard_id === state.selectedLeaderboardId ? 'selected' : ''
+                }>${lb.name || lb.leaderboard_id}</option>`
+            )
+            .join('')}
+        </select>
+        <button class="btn" id="new-sim-lb-btn" style="margin-top:8px;">Create new leaderboard ID</button>
+      </div>
+      <div class="input-group">
+        <label>Score value</label>
+        <input id="score-input" type="number" placeholder="5000" />
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="submit-score-btn" ${!xid ? 'disabled' : ''}>Submit score</button>
+      </div>
+      ${playerMessage ? `<p class="text-muted">${playerMessage}</p>` : ''}
+    </div>
+    <div class="panel">
+      <h3>Leaderboard preview</h3>
+      <p class="text-muted">Top scores for ${state.selectedLeaderboardId || ''}</p>
+      ${
+        leaderboardData && leaderboardData.entries.length > 0
+          ? `<div class="table-wrapper" style="box-shadow:none;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>XID</th>
+                    <th>Score</th>
+                    <th>Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${leaderboardData.entries
+                    .slice(0, 10)
+                    .map(
+                      (entry, idx) => `
+                        <tr>
+                          <td>${idx + 1}</td>
+                          <td>${entry.xid}</td>
+                          <td>${entry.score.toLocaleString()}</td>
+                          <td>${formatDate(entry.updatedOn)}</td>
+                        </tr>
+                      `
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+            </div>`
+          : `<p class="text-muted">No scores yet.</p>`
+      }
+    </div>
+  `;
+
+  renderShell(content, 'game');
+
+  // Default selection fetch
+  if (state.selectedLeaderboardId && (!state.leaderboardData || state.leaderboardData.leaderboardId !== state.selectedLeaderboardId)) {
+    loadPreviewLeaderboard(game.game_id, state.selectedLeaderboardId);
+  }
+
+  app.querySelector('#back-game')?.addEventListener('click', () => {
+    navigate('game', { push: true });
+  });
+
+  app.querySelector('#logout-player-btn')?.addEventListener('click', () => {
+    state.playerSession = undefined;
+    state.playerMessage = undefined;
+    navigate('playerLogin', { gameId: game.game_id, push: true });
+  });
+
+  app.querySelector('#switch-player-btn')?.addEventListener('click', () => {
+    navigate('playerLogin', { gameId: game.game_id, push: true });
+  });
+
+  app.querySelector('#new-sim-lb-btn')?.addEventListener('click', () => {
+    const name = prompt('Enter new leaderboard ID (a-z, 0-9, -):');
+    if (!name) return;
+    if (!/^[a-z0-9-]+$/.test(name)) {
+      alert('Leaderboard ID must use a-z, 0-9, and hyphen.');
+      return;
+    }
+    state.selectedLeaderboardId = name;
+    // Push to dropdown immediately
+    game.leaderboards = [...game.leaderboards, { leaderboard_id: name, name, sort_order: 'desc' }];
+    loadPreviewLeaderboard(game.game_id, name).then(() => renderPlayerSimulatorPage());
+  });
+
+  app.querySelector('#sim-lb-select')?.addEventListener('change', (e) => {
+    const lbId = (e.target as HTMLSelectElement).value;
+    state.selectedLeaderboardId = lbId;
+    loadPreviewLeaderboard(game.game_id, lbId).then(() => renderPlayerSimulatorPage());
+  });
+
+  app.querySelector('#submit-score-btn')?.addEventListener('click', async () => {
+    if (!state.playerSession?.xid) {
+      state.playerMessage = 'Log in a player first.';
+      renderPlayerSimulatorPage();
+      return;
+    }
+    const lbId = state.selectedLeaderboardId || (app.querySelector('#sim-lb-select') as HTMLSelectElement | null)?.value;
+    if (!lbId) {
+      state.playerMessage = 'Select a leaderboard.';
+      renderPlayerSimulatorPage();
+      return;
+    }
+    const rawVal = (app.querySelector('#score-input') as HTMLInputElement | null)?.value;
+    const scoreVal = rawVal !== undefined && rawVal !== null && rawVal !== '' ? Number(rawVal) : NaN;
+    if (!Number.isFinite(scoreVal)) {
+      state.playerMessage = 'Enter a valid score (integer or decimal).';
+      renderPlayerSimulatorPage();
+      return;
+    }
+    try {
+      state.loading = true;
+      renderPlayerSimulatorPage();
+      await clientSubmitScore(game.game_id, lbId, state.playerSession.xid!, scoreVal);
+      state.playerMessage = 'Score submitted.';
+      await loadPreviewLeaderboard(game.game_id, lbId);
+    } catch (e) {
+      state.playerMessage = (e as Error).message;
+    } finally {
+      state.loading = false;
+      renderPlayerSimulatorPage();
+    }
+  });
+
+  app.querySelector('#view-lb-btn')?.addEventListener('click', () => {
+    const lbId = state.selectedLeaderboardId || (app.querySelector('#sim-lb-select') as HTMLSelectElement | null)?.value;
+    if (!lbId) {
+      alert('Select a leaderboard.');
+      return;
+    }
+    openLeaderboard(game.game_id, lbId, 1);
+  });
+
+  const scoreInput = app.querySelector('#score-input') as HTMLInputElement | null;
+  const submitBtn = app.querySelector('#submit-score-btn') as HTMLButtonElement | null;
+  if (scoreInput && submitBtn) {
+    const toggleSubmit = () => {
+      const raw = scoreInput.value;
+      const num = raw !== '' ? Number(raw) : NaN;
+      const valid = Number.isFinite(num);
+      submitBtn.disabled = !state.playerSession?.xid || !valid;
+    };
+    scoreInput.addEventListener('input', toggleSubmit);
+    toggleSubmit();
+  }
+}
+
+function renderPlayerModal(): string {
+  return '';
+}
+
+function bindPlayerModal(): void {
+  return;
 }
 
 function resolveFilterRange(filter: FilterState): { start?: number; end?: number } {
@@ -708,6 +1064,11 @@ function renderLeaderboardDashboard(): void {
     renderApp();
     return;
   }
+  const leaderboardOptions: LeaderboardOption[] = game.leaderboards.map((lb) => ({
+    leaderboard_id: lb.leaderboard_id,
+    name: lb.name,
+    sort_order: lb.sort_order,
+  }));
   state.selectedGameId = game.game_id;
   state.selectedLeaderboardId = leaderboard.leaderboard_id;
   saveUiState();
@@ -718,7 +1079,8 @@ function renderLeaderboardDashboard(): void {
   }
 
   const pageSize = 100;
-  const leaderboardData = state.leaderboardData;
+  const leaderboardData =
+    state.leaderboardData?.leaderboardId === leaderboard.leaderboard_id ? state.leaderboardData : undefined;
   const { start, end } = resolveFilterRange(state.filter);
   const filtered = (leaderboardData?.entries || []).filter((entry) => {
     const ts = new Date(entry.updatedOn).getTime();
@@ -742,6 +1104,32 @@ function renderLeaderboardDashboard(): void {
       </div>
       <div class="actions">
         <button class="btn ghost" id="back-game">Back to game</button>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom: 14px;">
+      <div class="split">
+        <div>
+          <div class="input-group">
+            <label>Leaderboard</label>
+            <select id="lb-select">
+              ${leaderboardOptions
+                .map(
+                  (lb) =>
+                    `<option value="${lb.leaderboard_id}" ${lb.leaderboard_id === leaderboard.leaderboard_id ? 'selected' : ''}>${
+                      lb.name || lb.leaderboard_id
+                    }</option>`
+                )
+                .join('')}
+            </select>
+          </div>
+          <div class="actions">
+            <button class="btn" id="new-lb-btn">Create new leaderboard ID</button>
+          </div>
+        </div>
+        <div>
+          <div class="badge">Player simulator</div>
+          ${state.playerSession?.xid ? `<p class="text-muted">Device: ${state.playerSession.deviceId} · XID: ${state.playerSession.xid}</p>` : '<p class="text-muted">Authenticate a player in the game view.</p>'}
+        </div>
       </div>
     </div>
     <div class="toolbar" style="position: relative;">
@@ -797,6 +1185,22 @@ function renderLeaderboardDashboard(): void {
     state.view = 'game';
     saveUiState();
     renderApp();
+  });
+
+  app.querySelector('#lb-select')?.addEventListener('change', (e) => {
+    const lbId = (e.target as HTMLSelectElement).value;
+    if (!lbId) return;
+    openLeaderboard(game.game_id, lbId, 1);
+  });
+
+  app.querySelector('#new-lb-btn')?.addEventListener('click', () => {
+    const name = prompt('Enter new leaderboard ID (a-z, 0-9, -):');
+    if (!name) return;
+    if (!/^[a-z0-9-]+$/.test(name)) {
+      alert('Leaderboard ID must use a-z, 0-9, and hyphen.');
+      return;
+    }
+    openLeaderboard(game.game_id, name, 1);
   });
 
   app.querySelector('#filter-toggle')?.addEventListener('click', () => {
@@ -924,6 +1328,17 @@ async function bootstrap(): Promise<void> {
   const savedSession = loadSession();
   const urlState = readUrlState();
   const ui = loadUiState();
+  window.onpopstate = () => {
+    const popped = readUrlState();
+    state.view = popped.view || 'welcome';
+    state.selectedGameId = popped.selectedGameId;
+    state.selectedLeaderboardId = popped.selectedLeaderboardId;
+    // if playerSim requested but no player session, send to playerLogin
+    if (state.view === 'playerSim' && !state.playerSession) {
+      state.view = 'playerLogin';
+    }
+    renderApp();
+  };
   if (savedSession) {
     try {
       state.loading = true;
