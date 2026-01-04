@@ -26,3 +26,4 @@ vendor/pkg/
 pyenv
 Vagrantfile
 planning.md
+.DS_Store

@@ -38,7 +38,10 @@ class Settings:
         
         # CORS settings for frontend integration
         self.cors_origins: list[str] = self._parse_hosts(
-            os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
+            os.environ.get(
+                "CORS_ORIGINS",
+                "http://localhost:3000,http://localhost:8000,http://localhost:8010,http://127.0.0.1:8010",
+            )
         )
     
     def _parse_hosts(self, hosts_str: str) -> list[str]:

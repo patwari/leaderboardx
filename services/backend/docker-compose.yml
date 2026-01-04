@@ -18,6 +18,7 @@ services:
       - SECRET_KEY=WgEPVP24jDgvDQYK
       - APP_NAME=LeaderboardX Development
       - APP_VERSION=0.0.1
+      - CORS_ORIGINS=http://localhost:8000,http://localhost:8010,http://127.0.0.1:8010
 
   postgres-service:
     image: postgres:15-alpine

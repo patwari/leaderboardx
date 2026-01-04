@@ -6,7 +6,7 @@ set -e
 echo "Building and starting LeaderboardX..."
 
 # Build and run with `docker compose`
-docker compose down -v
+docker compose down
 docker compose build
 # docker compose up --remove-orphans
 docker compose up --detach --remove-orphans
