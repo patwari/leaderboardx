@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from codebase.database import get_db
-from codebase.crud.company import create_company, get_company
+from codebase.crud.company import create_company, get_company, update_company
 from codebase.crud.game import create_game, get_game
 from codebase.crud.leaderboard import create_leaderboard, get_leaderboard
 from codebase.models import Company, Game
@@ -12,6 +12,7 @@ from codebase.schemas.studio import (
     CompanyCreate,
     CompanyCreated,
     CompanySummary,
+    CompanyUpdate,
     GameCreate,
     GameCreated,
     LeaderboardCreate,
@@ -99,3 +100,18 @@ async def get_company_summary(company_id: str, company_secret: str, db: AsyncSes
             for g in getattr(company_full, "games", [])
         ],
     )
+
+
+@router.post("/studio/company/update", response_model=CompanyCreated)
+async def update_company_settings(payload: CompanyUpdate, db: AsyncSession = Depends(get_db)):
+    company = await get_company(db, payload.company_id, payload.company_secret)
+    if company is None:
+        raise HTTPException(status_code=401, detail="Invalid company credentials")
+
+    updated = await update_company(
+        db,
+        company,
+        name=payload.name or company.name,
+        rotate_secret=payload.rotate_secret,
+    )
+    return CompanyCreated(company_id=updated.company_id, company_secret=updated.company_secret, name=updated.name)

@@ -65,3 +65,10 @@ class CompanySummary(BaseModel):
     company_id: UUID
     name: str
     games: list[GameSummary] = []
+
+
+class CompanyUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    rotate_secret: bool = False
+    company_id: UUID
+    company_secret: str = Field(..., min_length=16, max_length=64)

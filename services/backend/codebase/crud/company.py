@@ -24,3 +24,14 @@ async def get_company(db: AsyncSession, company_id, company_secret: str | None =
         stmt = stmt.where(Company.company_secret == company_secret)
     res = await db.execute(stmt)
     return res.scalar_one_or_none()
+
+
+async def update_company(db: AsyncSession, company: Company, *, name: str | None = None, rotate_secret: bool = False) -> Company:
+    if name:
+        company.name = name
+    if rotate_secret:
+        company.company_secret = _new_secret()
+    db.add(company)
+    await db.commit()
+    await db.refresh(company)
+    return company

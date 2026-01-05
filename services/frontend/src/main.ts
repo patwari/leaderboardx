@@ -347,6 +347,29 @@ async function clientSubmitScore(gameId: string, leaderboardId: string, xid: str
   }
 }
 
+async function updateStudioSettings(params: {
+  companyId: string;
+  companySecret: string;
+  name?: string;
+  rotateSecret?: boolean;
+}): Promise<{ company_id: string; company_secret: string; name: string }> {
+  const res = await fetch(`${API_BASE}/studio/company/update`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      company_id: params.companyId,
+      company_secret: params.companySecret,
+      name: params.name,
+      rotate_secret: params.rotateSecret ?? false
+    })
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || 'Unable to update settings');
+  }
+  return res.json();
+}
+
 async function loadPreviewLeaderboard(gameId: string, leaderboardId: string): Promise<void> {
   try {
     state.loading = true;
@@ -605,7 +628,10 @@ function renderShell(content: string, active: 'studio' | 'game'): void {
     });
   });
   const settingsBtn = app.querySelector('#settings-btn');
-  settingsBtn?.addEventListener('click', () => navigate('settings', { push: true }));
+  settingsBtn?.addEventListener('click', (evt) => {
+    evt.stopPropagation();
+    navigate('settings', { push: true });
+  });
   bindSidebarTree();
 }
 
@@ -1068,15 +1094,14 @@ function renderSettings(): void {
         <input id="studio-name-input" value="${state.studio.name}" />
       </div>
       <div class="actions">
-        <button class="btn primary" id="save-name-btn" disabled>Save (not wired)</button>
+        <button class="btn primary" id="save-name-btn">Save</button>
       </div>
-      <p class="text-muted">Renaming requires backend support; UI placeholder only.</p>
     </div>
     <div class="panel" style="max-width:600px;">
       <h3>Studio secret / password</h3>
-      <p class="text-muted">Password/secret rotation should be done via backend API. Placeholder only.</p>
       <div class="actions">
-        <button class="btn primary" id="rotate-secret-btn" disabled>Rotate secret (not wired)</button>
+        <button class="btn primary" id="rotate-secret-btn">Rotate secret</button>
+        <p class="text-muted">A new secret will be generated and shown immediately.</p>
       </div>
     </div>
     <div class="panel" style="max-width:600px;">
@@ -1088,6 +1113,47 @@ function renderSettings(): void {
   `;
   renderShell(content, 'studio');
   app.querySelector('#logout-btn')?.addEventListener('click', () => handleLogout());
+  app.querySelector('#save-name-btn')?.addEventListener('click', async () => {
+    const name = (app.querySelector('#studio-name-input') as HTMLInputElement | null)?.value.trim();
+    if (!name || !state.session) return;
+    try {
+      state.loading = true;
+      const updated = await updateStudioSettings({
+        companyId: state.session.companyId,
+        companySecret: state.session.companySecret,
+        name
+      });
+      state.session.companySecret = updated.company_secret;
+      saveSession(state.session);
+      if (state.studio) state.studio.name = updated.name;
+      state.playerMessage = 'Studio name updated.';
+    } catch (e) {
+      state.playerMessage = (e as Error).message;
+    } finally {
+      state.loading = false;
+      renderSettings();
+    }
+  });
+
+  app.querySelector('#rotate-secret-btn')?.addEventListener('click', async () => {
+    if (!state.session) return;
+    try {
+      state.loading = true;
+      const updated = await updateStudioSettings({
+        companyId: state.session.companyId,
+        companySecret: state.session.companySecret,
+        rotateSecret: true
+      });
+      state.session.companySecret = updated.company_secret;
+      saveSession(state.session);
+      state.playerMessage = 'Secret rotated. New secret stored in session.';
+    } catch (e) {
+      state.playerMessage = (e as Error).message;
+    } finally {
+      state.loading = false;
+      renderSettings();
+    }
+  });
 }
 
 function renderPlayerModal(): string {
