@@ -88,6 +88,21 @@ a {
   border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.btn.icon.large {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+
 .sidebar h4 {
   margin: 8px 0 12px;
   font-size: 12px;
@@ -114,6 +129,48 @@ a {
 .nav-item.active {
   background: linear-gradient(90deg, rgba(47, 111, 235, 0.8), rgba(124, 58, 237, 0.6));
   box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+}
+
+.tree {
+  margin-top: 12px;
+}
+
+.tree-node {
+  margin-bottom: 6px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tree-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tree-row .caret {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.tree-children {
+  margin-left: 16px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tree-leaf {
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tree-leaf:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .page {

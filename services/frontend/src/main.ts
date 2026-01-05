@@ -1,4 +1,13 @@
-type View = 'welcome' | 'login' | 'signup' | 'studio' | 'game' | 'leaderboard' | 'playerLogin' | 'playerSim';
+type View =
+  | 'welcome'
+  | 'login'
+  | 'signup'
+  | 'studio'
+  | 'game'
+  | 'leaderboard'
+  | 'playerLogin'
+  | 'playerSim'
+  | 'settings';
 
 type FilterKind = 'all' | '1h' | '6h' | '24h' | '48h' | 'custom';
 
@@ -74,6 +83,7 @@ interface AppState {
   leaderboardData?: LeaderboardData;
   playerSession?: PlayerSession;
   playerMessage?: string;
+  expandedGames?: Record<string, boolean>;
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -91,7 +101,8 @@ const state: AppState = {
   filter: { kind: '24h' },
   filterOpen: false,
   page: 1,
-  loading: false
+  loading: false,
+  expandedGames: {}
 };
 
 function renderApp(): void {
@@ -120,6 +131,9 @@ function renderApp(): void {
     case 'playerSim':
       renderPlayerSimulatorPage();
       break;
+    case 'settings':
+      renderSettings();
+      break;
   }
 }
 
@@ -129,6 +143,19 @@ function saveSession(session: Session): void {
 
 function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
+}
+
+function handleLogout(): void {
+  state.session = undefined;
+  state.studio = undefined;
+  state.selectedGameId = undefined;
+  state.selectedLeaderboardId = undefined;
+  state.leaderboardData = undefined;
+  state.playerSession = undefined;
+  state.playerMessage = undefined;
+  clearSession();
+  localStorage.removeItem(UI_STATE_KEY);
+  navigate('welcome', { push: true });
 }
 
 function loadSession(): Session | undefined {
@@ -207,6 +234,37 @@ function navigate(view: View, opts?: { gameId?: string; leaderboardId?: string; 
     window.history.replaceState({}, '', url.toString());
   }
   renderApp();
+}
+
+function buildSidebarTree(): string {
+  if (!state.studio) return '';
+  const games = state.studio.games || [];
+  return games
+    .map((g) => {
+      const expanded = state.expandedGames?.[g.game_id] ?? g.game_id === state.selectedGameId;
+      const leaderboards = expanded
+        ? `<div class="tree-children">
+            ${g.leaderboards
+              .map(
+                (lb) =>
+                  `<div class="tree-leaf" data-type="leaderboard" data-game="${g.game_id}" data-lb="${lb.leaderboard_id}">
+                    ${lb.name || lb.leaderboard_id}
+                  </div>`
+              )
+              .join('')}
+          </div>`
+        : '';
+      return `
+        <div class="tree-node">
+          <div class="tree-row ${expanded ? 'open' : ''}" data-type="game" data-game="${g.game_id}">
+            <span class="caret">${expanded ? '▾' : '▸'}</span>
+            <span>${g.name}</span>
+          </div>
+          ${leaderboards}
+        </div>
+      `;
+    })
+    .join('');
 }
 
 async function fetchCompanySummary(companyId: string, companySecret: string): Promise<Studio> {
@@ -514,6 +572,7 @@ async function handleSignup(companyName: string): Promise<void> {
 
 function renderShell(content: string, active: 'studio' | 'game'): void {
   const userLabel = state.session ? `Company: ${state.session.companyId}` : 'Guest';
+  const tree = buildSidebarTree();
   app.innerHTML = `
     <div class="topbar">
       <div class="brand">
@@ -524,11 +583,11 @@ function renderShell(content: string, active: 'studio' | 'game'): void {
     </div>
     <div class="shell">
       <aside class="sidebar">
-        <h4>Spaces</h4>
-        <div class="nav-item ${active === 'studio' ? 'active' : ''}" data-nav="studio">Studio overview</div>
-        <div class="nav-item ${active === 'game' ? 'active' : ''}" data-nav="game">Games</div>
-        <h4>Actions</h4>
-        <div class="nav-item" data-nav="logout">Logout</div>
+        <div class="sidebar-header nav-item ${active === 'studio' ? 'active' : ''}" data-nav="studio">
+          <span>Studio Overview</span>
+          <button class="btn icon large" id="settings-btn" title="Settings">⚙</button>
+        </div>
+        <div class="tree">${tree}</div>
       </aside>
       <main class="page">${content}</main>
     </div>
@@ -537,19 +596,6 @@ function renderShell(content: string, active: 'studio' | 'game'): void {
   app.querySelectorAll<HTMLElement>('.nav-item').forEach((item) => {
     item.addEventListener('click', () => {
       const nav = item.dataset.nav;
-      if (nav === 'logout') {
-        state.session = undefined;
-        state.studio = undefined;
-        state.selectedGameId = undefined;
-        state.selectedLeaderboardId = undefined;
-        state.leaderboardData = undefined;
-        state.playerSession = undefined;
-        state.playerMessage = undefined;
-        clearSession();
-        localStorage.removeItem(UI_STATE_KEY);
-        navigate('welcome', { push: true });
-        return;
-      }
       if (nav === 'studio') {
         navigate('studio', { push: true });
       } else if (nav === 'game') {
@@ -558,7 +604,9 @@ function renderShell(content: string, active: 'studio' | 'game'): void {
       }
     });
   });
-
+  const settingsBtn = app.querySelector('#settings-btn');
+  settingsBtn?.addEventListener('click', () => navigate('settings', { push: true }));
+  bindSidebarTree();
 }
 
 function renderStudioDashboard(): void {
@@ -597,7 +645,7 @@ function renderStudioDashboard(): void {
         .join('')}
     </div>
     <div class="card" style="margin-top: 16px;">
-      <h3>Overview</h3>
+      <h3>Studio Overview</h3>
       <p>Total games: <strong>${games.length}</strong></p>
       <p>Total leaderboards: <strong>${totalLeaderboards}</strong></p>
       <p class="text-muted">All values shown are demo data; hook up the backend API to view live stats.</p>
@@ -617,6 +665,8 @@ function renderStudioDashboard(): void {
       renderApp();
     });
   });
+
+  bindSidebarTree();
 }
 
 function openNewGamePrompt(): void {
@@ -669,7 +719,8 @@ function renderGameDashboard(): void {
         <p class="text-muted">Studio › ${state.studio.name} · ${game.leaderboards.length} leaderboards</p>
       </div>
       <div class="actions">
-        <button class="btn ghost" id="back-studio">Back to studio</button>
+        <button class="btn" id="simulate-player-btn">Simulate player</button>
+        <button class="btn icon large" id="game-settings-btn" title="Rename game">✎</button>
       </div>
     </div>
     <div class="card-grid">
@@ -699,11 +750,6 @@ function renderGameDashboard(): void {
 
   renderShell(content, 'game');
 
-  app.querySelector('#back-studio')?.addEventListener('click', () => {
-    state.view = 'studio';
-    renderApp();
-  });
-
   app.querySelectorAll<HTMLButtonElement>('button[data-lb]').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (!btn.dataset.lb) return;
@@ -713,6 +759,13 @@ function renderGameDashboard(): void {
 
   app.querySelector('#simulate-player-btn')?.addEventListener('click', () => {
     navigate('playerLogin', { gameId: game.game_id, push: true });
+  });
+
+  app.querySelector('#game-settings-btn')?.addEventListener('click', () => {
+    const newName = prompt('New game name', game.name);
+    if (!newName || !state.session) return;
+    game.name = newName;
+    renderApp();
   });
 }
 
@@ -993,6 +1046,48 @@ function renderPlayerSimulatorPage(): void {
     scoreInput.addEventListener('input', toggleSubmit);
     toggleSubmit();
   }
+}
+
+function renderSettings(): void {
+  if (!state.session || !state.studio) {
+    navigate('welcome', { push: true });
+    return;
+  }
+  const content = `
+    <div class="section-header">
+      <div>
+        <div class="badge">Settings</div>
+        <h2 style="margin: 8px 0 4px;">${state.studio.name}</h2>
+        <p class="text-muted">Manage studio settings and access.</p>
+      </div>
+    </div>
+    <div class="panel" style="max-width:600px;">
+      <h3>Studio name</h3>
+      <div class="input-group">
+        <label>Display name</label>
+        <input id="studio-name-input" value="${state.studio.name}" />
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="save-name-btn" disabled>Save (not wired)</button>
+      </div>
+      <p class="text-muted">Renaming requires backend support; UI placeholder only.</p>
+    </div>
+    <div class="panel" style="max-width:600px;">
+      <h3>Studio secret / password</h3>
+      <p class="text-muted">Password/secret rotation should be done via backend API. Placeholder only.</p>
+      <div class="actions">
+        <button class="btn primary" id="rotate-secret-btn" disabled>Rotate secret (not wired)</button>
+      </div>
+    </div>
+    <div class="panel" style="max-width:600px;">
+      <h3>Logout</h3>
+      <div class="actions">
+        <button class="btn" id="logout-btn">Logout of console</button>
+      </div>
+    </div>
+  `;
+  renderShell(content, 'studio');
+  app.querySelector('#logout-btn')?.addEventListener('click', () => handleLogout());
 }
 
 function renderPlayerModal(): string {
@@ -1369,3 +1464,26 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap();
+function bindSidebarTree(): void {
+  const gameToggles = app.querySelectorAll<HTMLElement>('.tree-row[data-type="game"]');
+  gameToggles.forEach((row) => {
+    row.addEventListener('click', () => {
+      const gameId = row.dataset.game;
+      if (!gameId || !state.studio) return;
+      const current = state.expandedGames?.[gameId] ?? gameId === state.selectedGameId;
+      state.expandedGames = { ...(state.expandedGames || {}), [gameId]: !current };
+      state.selectedGameId = gameId;
+      navigate('game', { gameId, push: true });
+    });
+  });
+
+  const lbNodes = app.querySelectorAll<HTMLElement>('.tree-leaf[data-type="leaderboard"]');
+  lbNodes.forEach((leaf) => {
+    leaf.addEventListener('click', () => {
+      const gameId = leaf.dataset.game;
+      const lbId = leaf.dataset.lb;
+      if (!gameId || !lbId) return;
+      navigate('leaderboard', { gameId, leaderboardId: lbId, push: true });
+    });
+  });
+}
