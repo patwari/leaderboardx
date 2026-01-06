@@ -1,0 +1,8 @@
+services:
+  frontend-service:
+    build: .
+    ports:
+      - "9011:80"
+    env_file:
+      - .env.prod
+    restart: unless-stopped

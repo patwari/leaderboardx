@@ -17,13 +17,9 @@ class Settings:
         self.app_name: str = os.environ.get("APP_NAME", "LeaderboardX")
         self.version: str = os.environ.get("APP_VERSION", "0.0.1")
         self.debug: bool = os.environ.get("DEBUG", "false").lower() == "true"
-        self.secret_key: str = os.environ.get("SECRET_KEY", "WgEPVP24jDgvDQYK")
         
         # Database configuration
-        self.database_url: str = os.environ.get(
-            "DATABASE_URL", 
-            "postgresql+asyncpg://user:pass@localhost:5432/leaderboardx-db"
-        )
+        self.database_url: str = os.environ.get("DATABASE_URL")
         
         # Redis configuration
         self.redis_url: str = os.environ.get("REDIS_URL", "redis://localhost:6379")
@@ -38,10 +34,7 @@ class Settings:
         
         # CORS settings for frontend integration
         self.cors_origins: list[str] = self._parse_hosts(
-            os.environ.get(
-                "CORS_ORIGINS",
-                "http://localhost:3000,http://localhost:8000,http://localhost:8010,http://127.0.0.1:8010",
-            )
+            os.environ.get("CORS_ORIGINS")
         )
     
     def _parse_hosts(self, hosts_str: str) -> list[str]:

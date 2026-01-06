@@ -26,4 +26,8 @@ vendor/pkg/
 pyenv
 Vagrantfile
 planning.md
+services/backend/.env.prod
+services/backend/.env.staging
+services/frontend/.env.prod
+services/frontend/.env.staging
 .DS_Store

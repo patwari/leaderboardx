@@ -1,0 +1,20 @@
+services:
+  frontend-service:
+    image: node:20-alpine
+    working_dir: /leaderboardx-fe-root
+    ports:
+      - "7011:80"
+    env_file:
+      - .env.staging
+    volumes:
+      - ./src:/leaderboardx-fe-root/src
+      - ./index.html:/leaderboardx-fe-root/index.html
+      - ./vite.config.ts:/leaderboardx-fe-root/vite.config.ts
+      - ./tsconfig.json:/leaderboardx-fe-root/tsconfig.json
+      - ./public:/leaderboardx-fe-root/public
+      - ./package.json:/leaderboardx-fe-root/package.json
+      - ./package-lock.json:/leaderboardx-fe-root/package-lock.json
+      - /leaderboardx-fe-root/node_modules
+      - /leaderboardx-fe-root/dist
+    command: sh -c "npm install && npm run build -- --mode staging && npm run preview -- --host --port 80"
+    restart: unless-stopped

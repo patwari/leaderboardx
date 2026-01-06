@@ -1,5 +1,0 @@
-services:
-  console-app:
-    build: .
-    ports:
-      - "8010:80"

@@ -1,0 +1,30 @@
+services:
+  main-service:
+    build: .
+    env_file:
+      - .env.prod
+    ports:
+      - "9010:8000"
+    depends_on:
+      - postgres-service
+      - redis-service
+    environment:
+      - DEBUG=false
+    restart: unless-stopped
+
+  postgres-service:
+    image: postgres:15-alpine
+    env_file:
+      - .env.prod
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    ports:
+      - "9015:5432"
+    restart: unless-stopped
+
+  redis-service:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
