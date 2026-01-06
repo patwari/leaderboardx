@@ -17,4 +17,6 @@ services:
       - /leaderboardx-fe-root/node_modules
       - /leaderboardx-fe-root/dist
     command: sh -c "npm install && npm run build -- --mode staging && npm run preview -- --host --port 80"
+    mem_limit: 256m
+    cpus: 0.5
     restart: unless-stopped

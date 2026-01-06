@@ -10,6 +10,8 @@ services:
       - redis-service
     environment:
       - DEBUG=false
+    mem_limit: 512m
+    cpus: 0.75
     restart: unless-stopped
 
   postgres-service:
@@ -20,11 +22,15 @@ services:
       - postgres_data_prod:/var/lib/postgresql/data
     ports:
       - "9015:5432"
+    mem_limit: 1024m
+    cpus: 1.0
     restart: unless-stopped
 
   redis-service:
     image: redis:7-alpine
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
 
 volumes:
   postgres_data_prod:
