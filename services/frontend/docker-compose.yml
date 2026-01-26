@@ -2,9 +2,11 @@ services:
   frontend-service:
     build: .
     ports:
-      - "9011:80"
+      - "9020:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
-      - .env.prod
+      - .env
     mem_limit: 256m
     cpus: 0.5
     restart: unless-stopped

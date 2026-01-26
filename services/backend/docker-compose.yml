@@ -2,7 +2,7 @@ services:
   main-service:
     build: .
     env_file:
-      - .env.prod
+      - .env
     ports:
       - "9010:8000"
     depends_on:
@@ -17,11 +17,11 @@ services:
   postgres-service:
     image: postgres:15-alpine
     env_file:
-      - .env.prod
+      - .env
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     ports:
-      - "9015:5432"
+      - "9011:5432"
     mem_limit: 1024m
     cpus: 1.0
     restart: unless-stopped
@@ -31,6 +31,8 @@ services:
     restart: unless-stopped
     mem_limit: 256m
     cpus: 0.5
+    ports:
+      - "9012:6379"
 
 volumes:
   postgres_data_prod:

@@ -38,7 +38,7 @@ interface GameSummary {
 }
 
 interface Studio {
-  company_id: string;
+  studio_id: string;
   name: string;
   games: GameSummary[];
 }
@@ -57,8 +57,8 @@ interface LeaderboardOption {
 }
 
 interface Session {
-  companyId: string;
-  companySecret: string;
+  studioId: string;
+  password: string;
   expiresAt: number;
 }
 
@@ -84,11 +84,16 @@ interface AppState {
   playerSession?: PlayerSession;
   playerMessage?: string;
   expandedGames?: Record<string, boolean>;
+  authForm?: {
+    loginId?: string;
+    password?: string;
+    companyName?: string;
+  };
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE;
 const SESSION_KEY = 'lx-session';
 const UI_STATE_KEY = 'lx-ui-state';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // configurable: one week
@@ -104,6 +109,15 @@ const state: AppState = {
   loading: false,
   expandedGames: {}
 };
+
+function apiUrl(path: string): string {
+  const base = API_BASE.replace(/\/$/, '');
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  if (/^https?:\/\//i.test(API_BASE)) {
+    return `${base}${suffix}`;
+  }
+  return `${window.location.origin}${base}${suffix}`;
+}
 
 function renderApp(): void {
   switch (state.view) {
@@ -267,11 +281,12 @@ function buildSidebarTree(): string {
     .join('');
 }
 
-async function fetchCompanySummary(companyId: string, companySecret: string): Promise<Studio> {
-  const url = new URL(`${API_BASE}/studio/company`);
-  url.searchParams.set('company_id', companyId);
-  url.searchParams.set('company_secret', companySecret);
-  const res = await fetch(url.toString());
+async function fetchCompanySummary(studioId: string, password: string): Promise<Studio> {
+  const res = await fetch(apiUrl('/studio/summary'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studio_id: studioId, password })
+  });
   if (!res.ok) {
     const detail = await res.text();
     throw new Error(detail || 'Unable to fetch company summary');
@@ -280,11 +295,11 @@ async function fetchCompanySummary(companyId: string, companySecret: string): Pr
   return data as Studio;
 }
 
-async function registerCompany(name: string): Promise<{ company_id: string; company_secret: string; name: string }> {
-  const res = await fetch(`${API_BASE}/studio/companies`, {
+async function registerCompany(params: { name: string; loginId: string; password: string }): Promise<{ studio_id: string; login_id: string; name: string }> {
+  const res = await fetch(apiUrl('/studio/companies'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name })
+    body: JSON.stringify({ name: params.name, login_id: params.loginId, password: params.password })
   });
   if (!res.ok) {
     const detail = await res.text();
@@ -299,7 +314,7 @@ async function fetchLeaderboardEntries(
   page: number,
   pageSize: number
 ): Promise<LeaderboardData> {
-  const url = new URL(`${API_BASE}/client/leaderboard`);
+  const url = new URL(apiUrl('/client/leaderboard'));
   url.searchParams.set('game_id', gameId);
   url.searchParams.set('leaderboard_id', leaderboardId);
   url.searchParams.set('limit', pageSize.toString());
@@ -323,7 +338,7 @@ async function fetchLeaderboardEntries(
 }
 
 async function clientAuth(gameId: string, deviceId: string): Promise<{ xid: string; is_new: boolean }> {
-  const res = await fetch(`${API_BASE}/client/auth`, {
+  const res = await fetch(apiUrl('/client/auth'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ game_id: gameId, device_id: deviceId })
@@ -336,7 +351,7 @@ async function clientAuth(gameId: string, deviceId: string): Promise<{ xid: stri
 }
 
 async function clientSubmitScore(gameId: string, leaderboardId: string, xid: string, value: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/client/score`, {
+  const res = await fetch(apiUrl('/client/score'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ game_id: gameId, leaderboard_id: leaderboardId, xid, value })
@@ -348,19 +363,21 @@ async function clientSubmitScore(gameId: string, leaderboardId: string, xid: str
 }
 
 async function updateStudioSettings(params: {
-  companyId: string;
-  companySecret: string;
+  studioId: string;
+  currentPassword: string;
   name?: string;
-  rotateSecret?: boolean;
-}): Promise<{ company_id: string; company_secret: string; name: string }> {
-  const res = await fetch(`${API_BASE}/studio/company/update`, {
+  loginId?: string;
+  newPassword?: string;
+}): Promise<{ studio_id: string; login_id: string; name: string }> {
+  const res = await fetch(apiUrl('/studio/company/update'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      company_id: params.companyId,
-      company_secret: params.companySecret,
+      studio_id: params.studioId,
+      current_password: params.currentPassword,
       name: params.name,
-      rotate_secret: params.rotateSecret ?? false
+      login_id: params.loginId,
+      password: params.newPassword
     })
   });
   if (!res.ok) {
@@ -368,6 +385,46 @@ async function updateStudioSettings(params: {
     throw new Error(detail || 'Unable to update settings');
   }
   return res.json();
+}
+
+async function registerGame(studioId: string, password: string, name: string): Promise<GameSummary> {
+  const res = await fetch(apiUrl('/studio/games'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studio_id: studioId, password, name })
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || 'Unable to create game');
+  }
+  const data = await res.json();
+  return { game_id: data.game_id, name: data.name, leaderboards: [] };
+}
+
+async function registerLeaderboard(
+  studioId: string,
+  password: string,
+  gameId: string,
+  leaderboardId: string,
+  name: string
+): Promise<LeaderboardSummary> {
+  const res = await fetch(apiUrl('/studio/leaderboards'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studio_id: studioId,
+      password,
+      game_id: gameId,
+      leaderboard_id: leaderboardId,
+      name
+    })
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || 'Unable to create leaderboard');
+  }
+  const data = await res.json();
+  return { leaderboard_id: data.leaderboard_id, name: data.name, sort_order: data.sort_order };
 }
 
 async function loadPreviewLeaderboard(gameId: string, leaderboardId: string): Promise<void> {
@@ -405,45 +462,6 @@ async function openLeaderboard(gameId: string, leaderboardId: string, page: numb
   }
 }
 
-async function registerGame(companyId: string, companySecret: string, name: string): Promise<GameSummary> {
-  const res = await fetch(`${API_BASE}/studio/games`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ company_id: companyId, company_secret: companySecret, name })
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || 'Unable to create game');
-  }
-  const data = await res.json();
-  return { game_id: data.game_id, name: data.name, leaderboards: [] };
-}
-
-async function registerLeaderboard(
-  companyId: string,
-  companySecret: string,
-  gameId: string,
-  leaderboardId: string,
-  name: string
-): Promise<LeaderboardSummary> {
-  const res = await fetch(`${API_BASE}/studio/leaderboards`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      company_id: companyId,
-      company_secret: companySecret,
-      game_id: gameId,
-      leaderboard_id: leaderboardId,
-      name
-    })
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || 'Unable to create leaderboard');
-  }
-  const data = await res.json();
-  return { leaderboard_id: data.leaderboard_id, name: data.name, sort_order: data.sort_order };
-}
 
 function renderWelcome(): void {
   app.innerHTML = `
@@ -458,7 +476,7 @@ function renderWelcome(): void {
       <h1>Operate leaderboards like Firebase, but for games.</h1>
       <p>
         Log in or sign up to manage studios, games, and leaderboards. No email is required — we keep it lightweight for rapid iteration.
-        Uses backend APIs for real data; credentials are your Studio (company) ID and secret.
+        Uses backend APIs for real data; credentials are your studio login ID and password.
       </p>
       <div class="actions">
         <button class="btn primary" id="login-btn">Log in</button>
@@ -479,6 +497,9 @@ function renderWelcome(): void {
 }
 
 function renderAuth(mode: 'login' | 'signup'): void {
+  const savedLoginId = state.authForm?.loginId || '';
+  const savedPassword = state.authForm?.password || '';
+  const savedName = state.authForm?.companyName || '';
   app.innerHTML = `
     <div class="topbar">
       <div class="brand">
@@ -490,22 +511,22 @@ function renderAuth(mode: 'login' | 'signup'): void {
     <div class="page">
       <div class="hero" style="max-width: 520px;">
         <h1>${mode === 'login' ? 'Welcome back' : 'Create your studio space'}</h1>
-        <p>Use your Studio (company) ID and secret to access the console.</p>
-        <p class="text-muted" style="margin-bottom: 12px;">Don't have one? Sign up to generate a company ID + secret.</p>
+        <p>Use your studio login ID and password to access the console.</p>
+        <p class="text-muted" style="margin-bottom: 12px;">Login ID can be a-z, 0-9, and '-'.</p>
         <form id="auth-form">
           <div class="input-group">
-            <label for="companyId">Company ID</label>
-            <input required name="companyId" id="companyId" placeholder="UUID from signup" />
+            <label for="loginId">Login ID</label>
+            <input required name="loginId" id="loginId" placeholder="my-studio" value="${savedLoginId}" />
           </div>
           <div class="input-group">
-            <label for="secret">Company Secret</label>
-            <input required type="password" name="secret" id="secret" placeholder="••••••••" />
+            <label for="password">Password</label>
+            <input required type="password" name="password" id="password" placeholder="••••••••" value="${savedPassword}" />
           </div>
           ${
             mode === 'signup'
               ? `<div class="input-group">
                   <label for="companyName">Studio name</label>
-                  <input required name="companyName" id="companyName" placeholder="Neon Storm Studios" />
+                  <input required name="companyName" id="companyName" placeholder="Neon Storm Studios" value="${savedName}" />
                 </div>`
               : ''
           }
@@ -528,6 +549,11 @@ function renderAuth(mode: 'login' | 'signup'): void {
 
   app.querySelector('#swap-mode')?.addEventListener('click', () => {
     state.authMessage = undefined;
+    state.authForm = {
+      loginId: (app.querySelector('#loginId') as HTMLInputElement | null)?.value,
+      password: (app.querySelector('#password') as HTMLInputElement | null)?.value,
+      companyName: (app.querySelector('#companyName') as HTMLInputElement | null)?.value,
+    };
     state.view = mode === 'login' ? 'signup' : 'login';
     renderApp();
   });
@@ -535,10 +561,16 @@ function renderAuth(mode: 'login' | 'signup'): void {
   app.querySelector('#auth-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget as HTMLFormElement);
-    const companyId = (formData.get('companyId') || '').toString().trim();
-    const secret = (formData.get('secret') || '').toString().trim();
-    if (!companyId || !secret) {
-      state.authMessage = 'Company ID and secret are required.';
+    const loginId = (formData.get('loginId') || '').toString().trim();
+    const password = (formData.get('password') || '').toString().trim();
+    state.authForm = { loginId, password, companyName: (formData.get('companyName') || '').toString().trim() };
+    if (!loginId || !password) {
+      state.authMessage = 'Login ID and password are required.';
+      renderApp();
+      return;
+    }
+    if (!/^[a-z0-9-]+$/.test(loginId)) {
+      state.authMessage = 'Login ID must use a-z, 0-9, and hyphen.';
       renderApp();
       return;
     }
@@ -550,20 +582,34 @@ function renderAuth(mode: 'login' | 'signup'): void {
         renderApp();
         return;
       }
-      handleSignup(companyName);
+      if (password.length < 6) {
+        state.authMessage = 'Password must be at least 6 characters.';
+        renderApp();
+        return;
+      }
+      handleSignup(companyName, loginId, password);
     } else {
-      handleLogin(companyId, secret);
+      handleLogin(loginId, password);
     }
   });
 }
 
-async function handleLogin(companyId: string, secret: string): Promise<void> {
+async function handleLogin(loginId: string, password: string): Promise<void> {
   try {
     state.loading = true;
     renderApp();
-    const studio = await fetchCompanySummary(companyId, secret);
+    const res = await fetch(apiUrl('/studio/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login_id: loginId, password })
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      throw new Error(detail || 'Login failed');
+    }
+    const studio = (await res.json()) as Studio;
     state.studio = studio;
-    state.session = { companyId, companySecret: secret, expiresAt: Date.now() + SESSION_TTL_MS };
+    state.session = { studioId: studio.studio_id, password, expiresAt: Date.now() + SESSION_TTL_MS };
     saveSession(state.session);
     state.authMessage = undefined;
     state.view = 'studio';
@@ -579,13 +625,13 @@ async function handleLogin(companyId: string, secret: string): Promise<void> {
   }
 }
 
-async function handleSignup(companyName: string): Promise<void> {
+async function handleSignup(companyName: string, loginId: string, password: string): Promise<void> {
   try {
     state.loading = true;
     renderApp();
-    const created = await registerCompany(companyName);
-    // After signup, log them in using the returned credentials
-    await handleLogin(created.company_id, created.company_secret);
+    await registerCompany({ name: companyName, loginId, password });
+    // After signup, log them in using login ID + password
+    await handleLogin(loginId, password);
   } catch (error) {
     state.authMessage = (error as Error).message || 'Signup failed';
     state.loading = false;
@@ -594,7 +640,7 @@ async function handleSignup(companyName: string): Promise<void> {
 }
 
 function renderShell(content: string, active: 'studio' | 'game'): void {
-  const userLabel = state.session ? `Company: ${state.session.companyId}` : 'Guest';
+  const userLabel = state.session ? `Studio: ${state.session.studioId}` : 'Guest';
   const tree = buildSidebarTree();
   app.innerHTML = `
     <div class="topbar">
@@ -705,10 +751,10 @@ function openNewGamePrompt(): void {
   if (!name) return;
   state.loading = true;
   renderApp();
-  registerGame(state.session.companyId, state.session.companySecret, name)
+  registerGame(state.session.studioId, state.session.password, name)
     .then(async (game) => {
       // Refresh from backend to ensure DB state is reflected
-      const refreshed = await fetchCompanySummary(state.session!.companyId, state.session!.companySecret);
+      const refreshed = await fetchCompanySummary(state.session!.studioId, state.session!.password);
       state.studio = refreshed;
       state.selectedGameId = game.game_id;
       state.view = 'game';
@@ -1098,10 +1144,10 @@ function renderSettings(): void {
       </div>
     </div>
     <div class="panel" style="max-width:600px;">
-      <h3>Studio secret / password</h3>
+      <h3>Studio password</h3>
       <div class="actions">
-        <button class="btn primary" id="rotate-secret-btn">Rotate secret</button>
-        <p class="text-muted">A new secret will be generated and shown immediately.</p>
+        <button class="btn primary" id="rotate-secret-btn">Change password</button>
+        <p class="text-muted">Updates the login password for this studio.</p>
       </div>
     </div>
     <div class="panel" style="max-width:600px;">
@@ -1119,11 +1165,10 @@ function renderSettings(): void {
     try {
       state.loading = true;
       const updated = await updateStudioSettings({
-        companyId: state.session.companyId,
-        companySecret: state.session.companySecret,
+        studioId: state.session.studioId,
+        currentPassword: state.session.password,
         name
       });
-      state.session.companySecret = updated.company_secret;
       saveSession(state.session);
       if (state.studio) state.studio.name = updated.name;
       state.playerMessage = 'Studio name updated.';
@@ -1137,16 +1182,18 @@ function renderSettings(): void {
 
   app.querySelector('#rotate-secret-btn')?.addEventListener('click', async () => {
     if (!state.session) return;
+    const newPassword = prompt('Enter new password');
+    if (!newPassword) return;
     try {
       state.loading = true;
       const updated = await updateStudioSettings({
-        companyId: state.session.companyId,
-        companySecret: state.session.companySecret,
-        rotateSecret: true
+        studioId: state.session.studioId,
+        currentPassword: state.session.password,
+        newPassword
       });
-      state.session.companySecret = updated.company_secret;
+      state.session.password = newPassword;
       saveSession(state.session);
-      state.playerMessage = 'Secret rotated. New secret stored in session.';
+      state.playerMessage = 'Password updated.';
     } catch (e) {
       state.playerMessage = (e as Error).message;
     } finally {
@@ -1504,7 +1551,7 @@ async function bootstrap(): Promise<void> {
     try {
       state.loading = true;
       state.session = savedSession;
-      const studio = await fetchCompanySummary(savedSession.companyId, savedSession.companySecret);
+      const studio = await fetchCompanySummary(savedSession.studioId, savedSession.password);
       state.studio = studio;
       state.view = urlState.view || ui.view || 'studio';
       state.selectedGameId = urlState.selectedGameId || ui.selectedGameId;

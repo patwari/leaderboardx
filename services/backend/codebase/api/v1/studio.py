@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
+from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from codebase.database import get_db
-from codebase.crud.company import create_company, get_company, update_company
+from codebase.crud.company import (
+    create_company,
+    get_company_by_id,
+    get_company_by_login,
+    update_company,
+    verify_password,
+)
 from codebase.crud.game import create_game, get_game
 from codebase.crud.leaderboard import create_leaderboard, get_leaderboard
 from codebase.models import Company, Game
@@ -13,6 +20,8 @@ from codebase.schemas.studio import (
     CompanyCreated,
     CompanySummary,
     CompanyUpdate,
+    StudioAuth,
+    StudioLogin,
     GameCreate,
     GameCreated,
     LeaderboardCreate,
@@ -25,26 +34,37 @@ router = APIRouter(tags=["studio"])
 
 @router.post("/studio/companies", response_model=CompanyCreated)
 async def register_company(payload: CompanyCreate, db: AsyncSession = Depends(get_db)):
-    company = await create_company(db, name=payload.name)
-    return CompanyCreated(company_id=company.company_id, company_secret=company.company_secret, name=company.name)
+    existing = await get_company_by_login(db, payload.login_id)
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="login_id already exists")
+    company = await create_company(db, name=payload.name, login_id=payload.login_id, password=payload.password)
+    return CompanyCreated(studio_id=company.company_id, login_id=company.login_id, name=company.name)
+
+
+@router.post("/studio/login", response_model=CompanySummary)
+async def login_company(payload: StudioLogin, db: AsyncSession = Depends(get_db)):
+    company = await get_company_by_login(db, payload.login_id)
+    if company is None or not verify_password(payload.password, company.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid login credentials")
+    return await _company_summary(db, company)
 
 
 @router.post("/studio/games", response_model=GameCreated)
 async def register_game(payload: GameCreate, db: AsyncSession = Depends(get_db)):
-    company = await get_company(db, payload.company_id, payload.company_secret)
-    if company is None:
-        raise HTTPException(status_code=401, detail="Invalid company credentials")
+    company = await get_company_by_id(db, payload.studio_id)
+    if company is None or not verify_password(payload.password, company.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid studio credentials")
 
     game = await create_game(db, company_id=company.company_id, name=payload.name)
-    return GameCreated(game_id=game.game_id, game_secret=game.game_secret, company_id=game.company_id, name=game.name)
+    return GameCreated(game_id=game.game_id, game_secret=game.game_secret, studio_id=game.company_id, name=game.name)
 
 
 @router.post("/studio/leaderboards", response_model=LeaderboardCreated)
 async def register_leaderboard(payload: LeaderboardCreate, db: AsyncSession = Depends(get_db)):
-    # Verify company auth + game ownership
-    company = await get_company(db, payload.company_id, payload.company_secret)
-    if company is None:
-        raise HTTPException(status_code=401, detail="Invalid company credentials")
+    # Verify studio auth + game ownership
+    company = await get_company_by_id(db, payload.studio_id)
+    if company is None or not verify_password(payload.password, company.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid studio credentials")
 
     game = await get_game(db, payload.game_id, company_id=company.company_id)
     if game is None:
@@ -70,14 +90,31 @@ async def register_leaderboard(payload: LeaderboardCreate, db: AsyncSession = De
     )
 
 
-@router.get("/studio/company", response_model=CompanySummary)
-async def get_company_summary(company_id: str, company_secret: str, db: AsyncSession = Depends(get_db)):
-    # lightweight summary for future dashboard wiring
-    company = await get_company(db, company_id, company_secret)
-    if company is None:
-        raise HTTPException(status_code=401, detail="Invalid company credentials")
+@router.post("/studio/summary", response_model=CompanySummary)
+async def get_company_summary(payload: StudioAuth, db: AsyncSession = Depends(get_db)):
+    company = await get_company_by_id(db, payload.studio_id)
+    if company is None or not verify_password(payload.password, company.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid studio credentials")
+    return await _company_summary(db, company)
 
-    # Load games + leaderboards for basic dashboard wiring
+
+@router.post("/studio/company/update", response_model=CompanyCreated)
+async def update_company_settings(payload: CompanyUpdate, db: AsyncSession = Depends(get_db)):
+    company = await get_company_by_id(db, payload.studio_id)
+    if company is None or not verify_password(payload.current_password, company.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid studio credentials")
+
+    updated = await update_company(
+        db,
+        company,
+        name=payload.name or company.name,
+        login_id=payload.login_id or company.login_id,
+        password=payload.password,
+    )
+    return CompanyCreated(studio_id=updated.company_id, login_id=updated.login_id, name=updated.name)
+
+
+async def _company_summary(db: AsyncSession, company: Company) -> CompanySummary:
     res = await db.execute(
         select(Company)
         .options(selectinload(Company.games).selectinload(Game.leaderboards))
@@ -86,7 +123,7 @@ async def get_company_summary(company_id: str, company_secret: str, db: AsyncSes
     company_full = res.scalar_one()
 
     return CompanySummary(
-        company_id=company_full.company_id,
+        studio_id=company_full.company_id,
         name=company_full.name,
         games=[
             {
@@ -100,18 +137,3 @@ async def get_company_summary(company_id: str, company_secret: str, db: AsyncSes
             for g in getattr(company_full, "games", [])
         ],
     )
-
-
-@router.post("/studio/company/update", response_model=CompanyCreated)
-async def update_company_settings(payload: CompanyUpdate, db: AsyncSession = Depends(get_db)):
-    company = await get_company(db, payload.company_id, payload.company_secret)
-    if company is None:
-        raise HTTPException(status_code=401, detail="Invalid company credentials")
-
-    updated = await update_company(
-        db,
-        company,
-        name=payload.name or company.name,
-        rotate_secret=payload.rotate_secret,
-    )
-    return CompanyCreated(company_id=updated.company_id, company_secret=updated.company_secret, name=updated.name)

@@ -14,28 +14,24 @@ class Settings:
     
     def __init__(self) -> None:
         # Core application settings
-        self.app_name: str = os.environ.get("APP_NAME", "LeaderboardX")
-        self.version: str = os.environ.get("APP_VERSION", "0.0.1")
-        self.debug: bool = os.environ.get("DEBUG", "false").lower() == "true"
+        self.app_name: str = os.environ["APP_NAME"]
+        self.version: str = os.environ["APP_VERSION"]
+        self.debug: bool = os.environ["DEBUG"].lower() == "true"
         
         # Database configuration
-        self.database_url: str = os.environ.get("DATABASE_URL")
+        self.database_url: str = os.environ["DATABASE_URL"]
         
         # Redis configuration
-        self.redis_url: str = os.environ.get("REDIS_URL", "redis://localhost:6379")
+        self.redis_url: str = os.environ["REDIS_URL"]
         
         # API settings
         self.api_v1_prefix: str = "/api/v1"
         
         # Security settings
-        self.allowed_hosts: list[str] = self._parse_hosts(
-            os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1")
-        )
+        self.allowed_hosts: list[str] = self._parse_hosts(os.environ["ALLOWED_HOSTS"])
         
         # CORS settings for frontend integration
-        self.cors_origins: list[str] = self._parse_hosts(
-            os.environ.get("CORS_ORIGINS")
-        )
+        self.cors_origins: list[str] = self._parse_hosts(os.environ["CORS_ORIGINS"])
     
     def _parse_hosts(self, hosts_str: str) -> list[str]:
         """Parse comma-separated host list."""
