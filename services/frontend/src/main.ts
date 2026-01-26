@@ -44,6 +44,7 @@ interface Studio {
 }
 
 interface LeaderboardData {
+  gameId: string;
   leaderboardId: string;
   entries: ScoreEntry[];
   total: number;
@@ -247,6 +248,12 @@ function navigate(view: View, opts?: { gameId?: string; leaderboardId?: string; 
   } else {
     window.history.replaceState({}, '', url.toString());
   }
+  if (view === 'leaderboard' && state.selectedGameId && state.selectedLeaderboardId) {
+    state.page = 1;
+    state.leaderboardData = undefined;
+    openLeaderboard(state.selectedGameId, state.selectedLeaderboardId, state.page);
+    return;
+  }
   renderApp();
 }
 
@@ -326,6 +333,7 @@ async function fetchLeaderboardEntries(
   }
   const data = await res.json();
   return {
+    gameId,
     leaderboardId,
     entries: (data.entries || []).map((e: any) => ({
       xid: e.xid,
@@ -431,7 +439,7 @@ async function loadPreviewLeaderboard(gameId: string, leaderboardId: string): Pr
   try {
     state.loading = true;
     const data = await fetchLeaderboardEntries(gameId, leaderboardId, 1, 50);
-    if (state.selectedLeaderboardId === leaderboardId) {
+    if (state.selectedLeaderboardId === leaderboardId && state.selectedGameId === gameId) {
       state.leaderboardData = data;
     }
   } catch (e) {
@@ -811,13 +819,6 @@ function renderGameDashboard(): void {
         )
         .join('')}
     </div>
-    <div class="card" style="margin-top: 16px;">
-      <h3>Simulate player</h3>
-      <p class="text-muted" style="margin-bottom: 12px;">Quickly test player behaviour (submits scores, creates leaderboards on first submit).</p>
-      <div class="actions" style="flex-wrap: wrap;">
-        <button class="btn" id="simulate-player-btn">Simulate player</button>
-      </div>
-    </div>
   `;
 
   renderShell(content, 'game');
@@ -946,7 +947,10 @@ function renderPlayerSimulatorPage(): void {
   const xid = state.playerSession.xid;
   const playerMessage = state.playerMessage || '';
   const leaderboardData =
-    state.leaderboardData?.leaderboardId === state.selectedLeaderboardId ? state.leaderboardData : undefined;
+    state.leaderboardData?.leaderboardId === state.selectedLeaderboardId &&
+    state.leaderboardData?.gameId === game.game_id
+      ? state.leaderboardData
+      : undefined;
 
   const content = `
     <div class="section-header">
@@ -1027,7 +1031,12 @@ function renderPlayerSimulatorPage(): void {
   renderShell(content, 'game');
 
   // Default selection fetch
-  if (state.selectedLeaderboardId && (!state.leaderboardData || state.leaderboardData.leaderboardId !== state.selectedLeaderboardId)) {
+  if (
+    state.selectedLeaderboardId &&
+    (!state.leaderboardData ||
+      state.leaderboardData.leaderboardId !== state.selectedLeaderboardId ||
+      state.leaderboardData.gameId !== game.game_id)
+  ) {
     loadPreviewLeaderboard(game.game_id, state.selectedLeaderboardId);
   }
 
@@ -1281,14 +1290,21 @@ function renderLeaderboardDashboard(): void {
   state.selectedLeaderboardId = leaderboard.leaderboard_id;
   saveUiState();
 
-  if (!state.leaderboardData && !state.loading) {
-    openLeaderboard(game.game_id, leaderboard.leaderboard_id, state.page);
+  const needsReload =
+    !state.leaderboardData ||
+    state.leaderboardData.leaderboardId !== leaderboard.leaderboard_id ||
+    state.leaderboardData.gameId !== game.game_id;
+  if (needsReload && !state.loading) {
+    openLeaderboard(game.game_id, leaderboard.leaderboard_id, state.page || 1);
     return;
   }
 
   const pageSize = 100;
   const leaderboardData =
-    state.leaderboardData?.leaderboardId === leaderboard.leaderboard_id ? state.leaderboardData : undefined;
+    state.leaderboardData?.leaderboardId === leaderboard.leaderboard_id &&
+    state.leaderboardData?.gameId === game.game_id
+      ? state.leaderboardData
+      : undefined;
   const { start, end } = resolveFilterRange(state.filter);
   const filtered = (leaderboardData?.entries || []).filter((entry) => {
     const ts = new Date(entry.updatedOn).getTime();
@@ -1346,6 +1362,7 @@ function renderLeaderboardDashboard(): void {
         <div class="badge">${renderFilterLabel(state.filter)}</div>
       </div>
       <div class="actions">
+        ${state.loading ? '<span class="loading-pill">Loading…</span>' : ''}
         <button class="btn ghost" id="refresh-btn">Refresh data</button>
       </div>
       ${state.filterOpen ? renderFilterPanel() : ''}
@@ -1545,6 +1562,12 @@ async function bootstrap(): Promise<void> {
     if (state.view === 'playerSim' && !state.playerSession) {
       state.view = 'playerLogin';
     }
+    if (state.view === 'leaderboard' && state.selectedGameId && state.selectedLeaderboardId) {
+      state.page = 1;
+      state.leaderboardData = undefined;
+      openLeaderboard(state.selectedGameId, state.selectedLeaderboardId, 1);
+      return;
+    }
     renderApp();
   };
   if (savedSession) {
@@ -1596,6 +1619,8 @@ function bindSidebarTree(): void {
       const gameId = leaf.dataset.game;
       const lbId = leaf.dataset.lb;
       if (!gameId || !lbId) return;
+      state.page = 1;
+      state.leaderboardData = undefined;
       navigate('leaderboard', { gameId, leaderboardId: lbId, push: true });
     });
   });

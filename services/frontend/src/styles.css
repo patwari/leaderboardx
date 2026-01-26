@@ -389,6 +389,17 @@ tr:hover td {
   color: var(--primary-strong);
 }
 
+.loading-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--text-muted);
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;
